@@ -12,20 +12,6 @@ export type LineChartInput = {
 };
 
 /**
- * Renders CSS styles for hover interactions.
- */
-function renderStyles(config: LineChartConfig): string {
-  return `  <style>
-    .chart-line {
-      transition: stroke-width 0.15s ease-in-out;
-    }
-    .chart-area:hover .chart-line {
-      stroke-width: ${config.strokeWidth + 0.5};
-    }
-  </style>`;
-}
-
-/**
  * Renders the complete line chart SVG.
  */
 export function renderLineChartSvg(input: LineChartInput): string {
@@ -35,7 +21,6 @@ export function renderLineChartSvg(input: LineChartInput): string {
   const linePath = createLinePath(svgPoints);
   const fillPath = createFillPath(svgPoints, config);
 
-  const styles = renderStyles(config);
   const gridLines = renderGridLines(input.points, config);
   const axes = renderAxes(input.points, config);
   const axisLabels = renderAxisLabels(input.points, config);
@@ -54,17 +39,15 @@ export function renderLineChartSvg(input: LineChartInput): string {
   preserveAspectRatio="${preserveAspectRatio}"
   role="img"
   aria-label="Contribution history chart">
-${styles}
 ${gridLines}
 ${axes}
 ${axisLabels}
-  <g class="chart-area">
+  <g>
     <path 
       d="${fillPath}" 
       fill="${config.fillColor}" 
       stroke="none" />
     <path 
-      class="chart-line"
       d="${linePath}" 
       fill="none" 
       stroke="${config.strokeColor}" 
