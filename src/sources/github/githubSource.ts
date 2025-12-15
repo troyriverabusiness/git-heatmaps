@@ -1,24 +1,37 @@
 import type { ContributionsSource } from "../contributionsSource";
 import type { ContributionQuery, ContributionData, ContributionHistory } from "../../domain/contributions";
-import { notImplemented } from "../../utils/appError";
+import { createGitHubService, type GitHubService } from "./githubService";
 
-type CreateGitHubContributionsSourceArgs = {
-  // TODO: Inject HTTP client, auth token provider, baseUrl, and rate limit policy.
+export type CreateGitHubContributionsSourceArgs = {
+  token: string;
+  // TODO: Add baseUrl for GitHub Enterprise support
+  // TODO: Add rate limit policy configuration
 };
 
+/**
+ * Creates a GitHub contributions source that implements the ContributionsSource interface.
+ * This is the integration point between the source abstraction and the GitHub-specific service.
+ * 
+ * TODO: Add environment variable fallback for token
+ * TODO: Add token validation
+ */
 export function createGitHubContributionsSource(
-  _args: CreateGitHubContributionsSourceArgs = {}
+  args: CreateGitHubContributionsSourceArgs
 ): ContributionsSource {
+  const service: GitHubService = createGitHubService({
+    token: args.token,
+  });
+
   return {
     provider: "github",
-    async fetchContributionData(_query: ContributionQuery): Promise<ContributionData> {
-      // TODO: Fetch contribution calendar / events from GitHub.
-      throw notImplemented("GitHub contribution fetching is not implemented yet.");
+    
+    async fetchContributionData(query: ContributionQuery): Promise<ContributionData> {
+      return service.fetchContributionData(query);
     },
-    async fetchContributionHistory(_query: ContributionQuery): Promise<ContributionHistory> {
-      // TODO: Fetch time-series contribution history from GitHub.
-      throw notImplemented("GitHub history fetching is not implemented yet.");
-    }
+    
+    async fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory> {
+      return service.fetchContributionHistory(query);
+    },
   };
 }
 

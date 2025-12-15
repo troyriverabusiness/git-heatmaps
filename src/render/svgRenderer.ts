@@ -1,14 +1,12 @@
 import type { ContributionData, ContributionHistory } from "../domain/contributions";
 import type { SvgDocument } from "../domain/svg";
-import { notImplemented } from "../utils/appError";
+import { renderHeatmapSvg } from "./heatmapRenderer";
+import { renderLineChartSvg } from "./lineChartRenderer";
+import type { HeatmapConfig, LineChartConfig } from "./svgTypes";
 
-export type HeatmapRenderOptions = {
-  // TODO: Add theme, cell size, margins, labels, etc.
-};
+export type HeatmapRenderOptions = Partial<HeatmapConfig>;
 
-export type HistoryRenderOptions = {
-  // TODO: Add chart size, padding, line style, axes, etc.
-};
+export type HistoryRenderOptions = Partial<LineChartConfig>;
 
 export type SvgRenderer = {
   renderHeatmap(args: { data: ContributionData; options?: HeatmapRenderOptions }): Promise<SvgDocument>;
@@ -17,18 +15,34 @@ export type SvgRenderer = {
 
 type CreateSvgRendererArgs = {
   // TODO: Allow swapping render engines (pure string templates vs SVG library).
+  // TODO: Add default theme configuration.
 };
 
 export function createSvgRenderer(_args: CreateSvgRendererArgs = {}): SvgRenderer {
   return {
-    async renderHeatmap() {
-      // TODO: Implement SVG heatmap rendering.
-      throw notImplemented("SVG heatmap rendering is not implemented yet.");
+    async renderHeatmap({ data, options }) {
+      const svg = renderHeatmapSvg({
+        days: data.days,
+        config: options,
+      });
+
+      return {
+        contentType: "image/svg+xml",
+        svg,
+      };
     },
-    async renderHistory() {
-      // TODO: Implement SVG line chart rendering.
-      throw notImplemented("SVG history rendering is not implemented yet.");
-    }
+
+    async renderHistory({ history, options }) {
+      const svg = renderLineChartSvg({
+        points: history.points,
+        config: options,
+      });
+
+      return {
+        contentType: "image/svg+xml",
+        svg,
+      };
+    },
   };
 }
 
