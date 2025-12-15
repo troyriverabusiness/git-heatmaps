@@ -4,35 +4,43 @@ import { createRouter } from "./server/router";
 import { createHeatmapController } from "./api/heatmapController";
 import { createHistoryController } from "./api/historyController";
 
-import { createContributionsService } from "./services/contributionsService";
+import {
+  createContributionService,
+  createContributionServiceConfigFromEnv,
+} from "./services/contributionService";
 
-import { createGitHubContributionsSource } from "./sources/github/githubSource";
-import { createGitLabContributionsSource } from "./sources/gitlab/gitlabSource";
-
-import { createSvgRenderer } from "./render/svgRenderer";
-import { createCache } from "./cache/cache";
+import { createGitHubService } from "./sources/github/githubService";
+import { createGitLabService } from "./sources/gitlab/gitlabService";
 
 const port = Number(process.env.PORT ?? "3000");
 
 // Composition root. All concrete implementations are wired here.
-const cache = createCache();
-const svgRenderer = createSvgRenderer();
-const githubSource = createGitHubContributionsSource();
-const gitlabSource = createGitLabContributionsSource();
+const config = createContributionServiceConfigFromEnv();
 
-const contributionsService = createContributionsService({
-  cache,
-  svgRenderer,
-  githubSource,
-  gitlabSource
+// Create services based on configuration
+const githubService = config.enableGitHub && process.env.GITHUB_TOKEN
+  ? createGitHubService({ token: process.env.GITHUB_TOKEN })
+  : undefined;
+
+const gitlabService = config.enableGitLab
+  ? createGitLabService({
+      token: process.env.GITLAB_TOKEN,
+      baseUrl: process.env.GITLAB_BASE_URL,
+    })
+  : undefined;
+
+const contributionService = createContributionService({
+  githubService,
+  gitlabService,
+  config,
 });
 
-const heatmapController = createHeatmapController({ contributionsService });
-const historyController = createHistoryController({ contributionsService });
+const heatmapController = createHeatmapController({ contributionService });
+const historyController = createHistoryController({ contributionService });
 
 const router = createRouter({
   heatmapController,
-  historyController
+  historyController,
 });
 
 const app = createServer({ router });

@@ -1,18 +1,25 @@
-import express, { type Router } from "express";
+import express, { type Router, type Request, type Response, type NextFunction } from "express";
 
-import { type HeatmapController } from "../api/heatmapController";
-import { type HistoryController } from "../api/historyController";
+export type RequestHandler = (req: Request, res: Response) => Promise<void>;
 
 type CreateRouterArgs = {
-  heatmapController: HeatmapController;
-  historyController: HistoryController;
+  heatmapController: RequestHandler;
+  historyController: RequestHandler;
 };
+
+function asyncHandler(
+  fn: RequestHandler
+): (req: Request, res: Response, next: NextFunction) => void {
+  return (req, res, next) => {
+    fn(req, res).catch(next);
+  };
+}
 
 export function createRouter({ heatmapController, historyController }: CreateRouterArgs): Router {
   const router = express.Router();
 
-  router.get("/heatmap", heatmapController.getHeatmap);
-  router.get("/history", historyController.getHistory);
+  router.get("/heatmap", asyncHandler(heatmapController));
+  router.get("/history", asyncHandler(historyController));
 
   return router;
 }
