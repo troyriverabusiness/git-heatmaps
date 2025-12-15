@@ -1,5 +1,5 @@
 import type { HeatmapRequest, HistoryRequest } from "../api/requestParsers";
-import type { Cache } from "../cache/cache";
+import type { Cache } from "../cache";
 import type { SvgRenderer } from "../render/svgRenderer";
 import type { ContributionsSource } from "../sources/contributionsSource";
 import type { SvgDocument } from "../domain/svg";
