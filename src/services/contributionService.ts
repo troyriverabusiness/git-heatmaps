@@ -9,9 +9,6 @@ import type { Cache } from "../cache";
 // Cache TTL: 5 minutes (contributions don't change frequently)
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-// TODO: Add pagination support for large date ranges
-// TODO: Add partial history support for incremental updates
-
 /**
  * Unified contribution entry combining all sources.
  */

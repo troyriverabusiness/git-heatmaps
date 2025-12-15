@@ -1,19 +1,22 @@
 // Re-exports for render module.
 
-export { renderHeatmapSvg, type HeatmapInput } from "./heatmapRenderer";
-export { renderLineChartSvg, type LineChartInput } from "./lineChartRenderer";
+// Heatmap
+export { renderHeatmapSvg, type HeatmapInput } from "./heatmap";
+export { type HeatmapConfig, defaultHeatmapConfig } from "./heatmap";
+
+// Line chart
+export { renderLineChartSvg, type LineChartInput } from "./linechart";
+export { type LineChartConfig, defaultLineChartConfig } from "./linechart";
+
+// Shared utilities
 export {
   getContributionColor,
   createAdaptiveColorScale,
   getDefaultColorPalette,
-} from "./colorScale";
+} from "./shared";
 export {
   type Dimensions,
   type Margin,
   type Point,
   type ColorStop,
-  type HeatmapConfig,
-  type LineChartConfig,
-  defaultHeatmapConfig,
-  defaultLineChartConfig,
-} from "./svgTypes";
+} from "./shared";

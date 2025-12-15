@@ -3,7 +3,6 @@
 import type { ColorStop } from "./svgTypes";
 
 // GitHub's contribution colors (light theme)
-// TODO: Add dark theme color palette
 const githubColorStops: ColorStop[] = [
   { threshold: 0, color: "#ebedf0" },   // no contributions
   { threshold: 1, color: "#9be9a8" },   // low

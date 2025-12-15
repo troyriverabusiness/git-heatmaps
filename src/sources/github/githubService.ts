@@ -8,7 +8,6 @@ import { mapContributionData, mapContributionHistory, type GitHubContributionCal
 
 export type GitHubServiceConfig = {
   token: string;
-  // TODO: Add GitHub Enterprise baseUrl support
 };
 
 export type GitHubService = {
@@ -69,7 +68,6 @@ async function fetchContributionCalendar(
     variables
   );
 
-  // TODO: Add more specific error handling (user not found, rate limited, etc.)
   if (result.errors && result.errors.length > 0) {
     const errorMessages = result.errors.map(e => e.message).join("; ");
     throw upstreamError(`GitHub API error: ${errorMessages}`, result.errors);

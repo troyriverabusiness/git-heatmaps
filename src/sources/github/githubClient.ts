@@ -4,9 +4,6 @@ const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
 
 export type GitHubClientConfig = {
   token: string;
-  // TODO: Add baseUrl override for GitHub Enterprise support
-  // TODO: Add timeout configuration
-  // TODO: Add retry policy configuration
 };
 
 export type GraphQlResponse<T> = {
@@ -35,8 +32,6 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
 
   return {
     async query<T>(graphql: string, variables?: Record<string, unknown>): Promise<GraphQlResponse<T>> {
-      // TODO: Validate token is present before making request
-      
       console.log(`[github-client] POST /graphql (user: ${variables?.username ?? "unknown"})`);
       
       const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {

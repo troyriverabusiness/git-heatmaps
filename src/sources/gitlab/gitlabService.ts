@@ -11,7 +11,7 @@
 
 import type { ContributionQuery, ContributionData, ContributionHistory } from '../../domain/contributions';
 import { upstreamError } from '../../utils/appError';
-import { createGitLabClient, type GitLabClient, type GitLabClientConfig } from './gitlabClient';
+import { createGitLabClient, type GitLabClient } from './gitlabClient';
 import { GITLAB_API_ACTIONS, GITLAB_PAGINATION } from './gitlabEventTypes';
 import type { GitLabEvent } from './gitlabEventFilter';
 import {

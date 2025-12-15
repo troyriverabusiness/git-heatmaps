@@ -6,8 +6,6 @@ const DEFAULT_GITLAB_BASE_URL = "https://gitlab.lrz.de";
 export type GitLabClientConfig = {
   token?: string;
   baseUrl?: string;
-  // TODO: Add timeout configuration
-  // TODO: Add retry policy configuration
 };
 
 export type GitLabPaginationInfo = {
@@ -55,8 +53,6 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
         "User-Agent": "git-heatmaps",
       };
 
-      // TODO: Token is optional for public profiles, but required for private data
-      // TODO: GitLab supports both Personal Access Tokens and OAuth tokens
       if (token) {
         headers["PRIVATE-TOKEN"] = token;
       }
@@ -79,8 +75,6 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
 
       const data = await response.json() as T;
 
-      // Parse pagination headers
-      // TODO: GitLab pagination uses Link headers and X-* headers
       const pagination: GitLabPaginationInfo = {
         page: parseInt(response.headers.get("X-Page") || "1", 10),
         perPage: parseInt(response.headers.get("X-Per-Page") || "20", 10),
