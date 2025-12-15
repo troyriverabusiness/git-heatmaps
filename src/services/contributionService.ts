@@ -4,8 +4,11 @@
 import type { GitHubService } from "../sources/github/githubService";
 import type { GitLabService } from "../sources/gitlab/gitlabService";
 import type { ContributionQuery, ContributionData } from "../domain/contributions";
+import type { Cache } from "../cache";
 
-// TODO: Add caching layer - cache by user + date range + enabled sources
+// Cache TTL: 5 minutes (contributions don't change frequently)
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 // TODO: Add pagination support for large date ranges
 // TODO: Add partial history support for incremental updates
 
@@ -59,19 +62,33 @@ export type ContributionService = {
 type ContributionServiceDependencies = {
   githubService?: GitHubService;
   gitlabService?: GitLabService;
+  cache?: Cache;
 };
+
+/**
+ * Builds a cache key from the query parameters.
+ */
+function buildCacheKey(query: AggregatedContributionQuery, fromDateIso: string, toDateIso: string): string {
+  const parts = [
+    'contributions',
+    query.githubUsername ? `gh:${query.githubUsername}` : '',
+    query.gitlabUsername ? `gl:${query.gitlabUsername}` : '',
+    fromDateIso,
+    toDateIso,
+  ].filter(Boolean);
+  return parts.join(':');
+}
 
 /**
  * Creates a contribution service that aggregates data from multiple sources.
  *
- * TODO: Add cache injection for result caching
  * TODO: Add metrics/logging for source fetch times
  * TODO: Add support for user aliases (same person, different usernames per platform)
  */
 export function createContributionService(
   deps: ContributionServiceDependencies
 ): ContributionService {
-  const { githubService, gitlabService } = deps;
+  const { githubService, gitlabService, cache } = deps;
 
   return {
     async fetchAggregatedContributions(
@@ -82,14 +99,19 @@ export function createContributionService(
         query.toDateIso
       );
 
+      // Check cache first
+      const cacheKey = buildCacheKey(query, fromDateIso, toDateIso);
+      if (cache) {
+        const cached = cache.get<AggregatedContributionResult>(cacheKey);
+        if (cached) {
+          console.log(`[service] Returning cached result for key="${cacheKey}"`);
+          return cached;
+        }
+      }
+
       const errors: SourceError[] = [];
       const sourceResults: ContributionData[] = [];
       let sourcesRequested = 0;
-
-      // TODO: Add caching check here before fetching
-      // const cacheKey = buildCacheKey(query);
-      // const cached = await cache.get(cacheKey);
-      // if (cached) return cached;
 
       // Fetch from available sources in parallel
       // Each source is queried if the service exists AND a username is provided
@@ -160,15 +182,19 @@ export function createContributionService(
         toDateIso
       );
 
-      // TODO: Cache the result here
-      // await cache.set(cacheKey, { contributions, errors }, CACHE_TTL);
-
-      return {
+      const result: AggregatedContributionResult = {
         contributions,
         errors,
         sourcesRequested,
         sourcesSucceeded: sourceResults.length,
       };
+
+      // Cache the result
+      if (cache) {
+        cache.set(cacheKey, result, CACHE_TTL_MS);
+      }
+
+      return result;
     },
   };
 }
