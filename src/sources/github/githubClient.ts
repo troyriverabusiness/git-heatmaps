@@ -37,6 +37,8 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
     async query<T>(graphql: string, variables?: Record<string, unknown>): Promise<GraphQlResponse<T>> {
       // TODO: Validate token is present before making request
       
+      console.log(`[github-client] POST /graphql (user: ${variables?.username ?? "unknown"})`);
+      
       const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {
         method: "POST",
         headers: {
@@ -50,10 +52,19 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
         }),
       });
 
-      // TODO: Handle non-200 responses (401 unauthorized, 403 rate limited, etc.)
-      // TODO: Parse rate limit headers and expose them
+      console.log(`[github-client] Response: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[github-client] Error response body: ${errorBody}`);
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      }
       
       const json = await response.json() as GraphQlResponse<T>;
+      
+      if (json.errors) {
+        console.error(`[github-client] GraphQL errors:`, json.errors);
+      }
       
       return json;
     },

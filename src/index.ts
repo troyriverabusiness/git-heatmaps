@@ -4,10 +4,7 @@ import { createRouter } from "./server/router";
 import { createHeatmapController } from "./api/heatmapController";
 import { createHistoryController } from "./api/historyController";
 
-import {
-  createContributionService,
-  createContributionServiceConfigFromEnv,
-} from "./services/contributionService";
+import { createContributionService } from "./services/contributionService";
 
 import { createGitHubService } from "./sources/github/githubService";
 import { createGitLabService } from "./sources/gitlab/gitlabService";
@@ -15,24 +12,27 @@ import { createGitLabService } from "./sources/gitlab/gitlabService";
 const port = Number(process.env.PORT ?? "3000");
 
 // Composition root. All concrete implementations are wired here.
-const config = createContributionServiceConfigFromEnv();
-
-// Create services based on configuration
-const githubService = config.enableGitHub && process.env.GITHUB_TOKEN
+// Services are created if their tokens are available.
+// GitHub requires a token (GraphQL API), GitLab can work without one (REST API).
+const githubService = process.env.GITHUB_TOKEN
   ? createGitHubService({ token: process.env.GITHUB_TOKEN })
   : undefined;
 
-const gitlabService = config.enableGitLab
-  ? createGitLabService({
-      token: process.env.GITLAB_TOKEN,
-      baseUrl: process.env.GITLAB_BASE_URL,
-    })
-  : undefined;
+const gitlabService = createGitLabService({
+  token: process.env.GITLAB_TOKEN,
+  baseUrl: process.env.GITLAB_BASE_URL,
+});
+
+// Log available services at startup
+console.log(`[config] GitHub service: ${githubService ? "enabled" : "disabled (no GITHUB_TOKEN)"}`);
+console.log(`[config] GitLab service: enabled${process.env.GITLAB_TOKEN ? "" : " (unauthenticated)"}`);
+if (process.env.GITLAB_BASE_URL) {
+  console.log(`[config] GitLab base URL: ${process.env.GITLAB_BASE_URL}`);
+}
 
 const contributionService = createContributionService({
   githubService,
   gitlabService,
-  config,
 });
 
 const heatmapController = createHeatmapController({ contributionService });

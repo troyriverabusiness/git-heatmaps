@@ -6,7 +6,7 @@ import type { Request, Response } from "express";
 import type { ContributionService } from "../services/contributionService";
 import type { ContributionDay } from "../domain/contributions";
 import { renderHeatmapSvg } from "../render";
-import { upstreamError } from "../utils/appError";
+import { badRequest, upstreamError } from "../utils/appError";
 
 export type HeatmapControllerDependencies = {
   contributionService: ContributionService;
@@ -57,6 +57,13 @@ export function createHeatmapController(
   return async (req: Request, res: Response): Promise<void> => {
     const params = parseQueryParams(req);
 
+    // Require at least one username
+    if (!params.githubUsername && !params.gitlabUsername) {
+      throw badRequest(
+        "At least one username is required. Provide githubUsername and/or gitlabUsername."
+      );
+    }
+
     const result = await contributionService.fetchAggregatedContributions({
       githubUsername: params.githubUsername,
       gitlabUsername: params.gitlabUsername,
@@ -64,12 +71,20 @@ export function createHeatmapController(
       toDateIso: params.to,
     });
 
-    // Check for upstream errors - report as 502
-    if (result.errors.length > 0 && result.contributions.length === 0) {
+    // Check for upstream errors - report as 502 if ALL requested sources failed
+    if (result.sourcesRequested > 0 && result.sourcesSucceeded === 0) {
       const errorMessages = result.errors
         .map((e) => `${e.source}: ${e.message}`)
         .join("; ");
       throw upstreamError(`Failed to fetch contributions: ${errorMessages}`);
+    }
+
+    // Log partial failures for debugging (some sources worked, some didn't)
+    if (result.errors.length > 0 && result.sourcesSucceeded > 0) {
+      console.warn(
+        `[heatmap] Partial failure - ${result.sourcesSucceeded}/${result.sourcesRequested} sources succeeded. Errors:`,
+        result.errors
+      );
     }
 
     const days = toContributionDays(result.contributions);

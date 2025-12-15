@@ -19,13 +19,6 @@ export type UnifiedContribution = {
   total: number;
 };
 
-/**
- * Configuration for the contribution service.
- */
-export type ContributionServiceConfig = {
-  enableGitHub: boolean;
-  enableGitLab: boolean;
-};
 
 /**
  * Query parameters for fetching aggregated contributions.
@@ -43,6 +36,10 @@ export type AggregatedContributionQuery = {
 export type AggregatedContributionResult = {
   contributions: UnifiedContribution[];
   errors: SourceError[];
+  /** Number of sources that were requested (had username provided) */
+  sourcesRequested: number;
+  /** Number of sources that returned data successfully */
+  sourcesSucceeded: number;
 };
 
 /**
@@ -62,7 +59,6 @@ export type ContributionService = {
 type ContributionServiceDependencies = {
   githubService?: GitHubService;
   gitlabService?: GitLabService;
-  config: ContributionServiceConfig;
 };
 
 /**
@@ -75,7 +71,7 @@ type ContributionServiceDependencies = {
 export function createContributionService(
   deps: ContributionServiceDependencies
 ): ContributionService {
-  const { githubService, gitlabService, config } = deps;
+  const { githubService, gitlabService } = deps;
 
   return {
     async fetchAggregatedContributions(
@@ -88,16 +84,21 @@ export function createContributionService(
 
       const errors: SourceError[] = [];
       const sourceResults: ContributionData[] = [];
+      let sourcesRequested = 0;
 
       // TODO: Add caching check here before fetching
-      // const cacheKey = buildCacheKey(query, config);
+      // const cacheKey = buildCacheKey(query);
       // const cached = await cache.get(cacheKey);
       // if (cached) return cached;
 
-      // Fetch from enabled sources in parallel
+      // Fetch from available sources in parallel
+      // Each source is queried if the service exists AND a username is provided
       const fetchPromises: Promise<void>[] = [];
 
-      if (config.enableGitHub && githubService && query.githubUsername) {
+      if (githubService && query.githubUsername) {
+        sourcesRequested++;
+        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (${fromDateIso} to ${toDateIso})`);
+        const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitHub(
             githubService,
@@ -106,18 +107,26 @@ export function createContributionService(
             toDateIso
           )
             .then((data) => {
+              const duration = Date.now() - startTime;
+              console.log(`[source] GitHub: success - ${data.days.length} days fetched (${duration}ms)`);
               sourceResults.push(data);
             })
             .catch((error) => {
+              const duration = Date.now() - startTime;
+              const message = error instanceof Error ? error.message : String(error);
+              console.error(`[source] GitHub: error - ${message} (${duration}ms)`);
               errors.push({
                 source: "github",
-                message: error instanceof Error ? error.message : String(error),
+                message,
               });
             })
         );
       }
 
-      if (config.enableGitLab && gitlabService && query.gitlabUsername) {
+      if (gitlabService && query.gitlabUsername) {
+        sourcesRequested++;
+        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (${fromDateIso} to ${toDateIso})`);
+        const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitLab(
             gitlabService,
@@ -126,12 +135,17 @@ export function createContributionService(
             toDateIso
           )
             .then((data) => {
+              const duration = Date.now() - startTime;
+              console.log(`[source] GitLab: success - ${data.days.length} days fetched (${duration}ms)`);
               sourceResults.push(data);
             })
             .catch((error) => {
+              const duration = Date.now() - startTime;
+              const message = error instanceof Error ? error.message : String(error);
+              console.error(`[source] GitLab: error - ${message} (${duration}ms)`);
               errors.push({
                 source: "gitlab",
-                message: error instanceof Error ? error.message : String(error),
+                message,
               });
             })
         );
@@ -149,7 +163,12 @@ export function createContributionService(
       // TODO: Cache the result here
       // await cache.set(cacheKey, { contributions, errors }, CACHE_TTL);
 
-      return { contributions, errors };
+      return {
+        contributions,
+        errors,
+        sourcesRequested,
+        sourcesSucceeded: sourceResults.length,
+      };
     },
   };
 }
@@ -292,12 +311,3 @@ function generateDateRange(fromDateIso: string, toDateIso: string): string[] {
   return dates;
 }
 
-/**
- * Creates a contribution service config from environment variables.
- */
-export function createContributionServiceConfigFromEnv(): ContributionServiceConfig {
-  return {
-    enableGitHub: process.env.ENABLE_GITHUB !== "false",
-    enableGitLab: process.env.ENABLE_GITLAB !== "false",
-  };
-}

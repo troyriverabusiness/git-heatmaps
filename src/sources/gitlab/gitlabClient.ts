@@ -61,14 +61,21 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
         headers["PRIVATE-TOKEN"] = token;
       }
 
+      console.log(`[gitlab-client] GET ${url.pathname}${url.search}`);
+      
       const response = await fetch(url.toString(), {
         method: "GET",
         headers,
       });
 
-      // TODO: Handle non-200 responses (401 unauthorized, 404 not found, 429 rate limited)
-      // TODO: Parse rate limit headers and expose them
-      // TODO: GitLab returns different error formats than GitHub
+      console.log(`[gitlab-client] Response: ${response.status} ${response.statusText}`);
+
+      // Handle non-200 responses
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[gitlab-client] Error response body: ${errorBody}`);
+        throw new Error(`GitLab API error: ${response.status} ${response.statusText}`);
+      }
 
       const data = await response.json() as T;
 

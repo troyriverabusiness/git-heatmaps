@@ -10,8 +10,22 @@ type CreateServerArgs = {
 export function createServer({ router }: CreateServerArgs): Express {
   const app = express();
 
-  // TODO: Add request logging (pino/morgan) if/when needed. Keep minimal deps for now.
   app.disable("x-powered-by");
+
+  // Request/response logging middleware
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const { method, url } = req;
+    
+    console.log(`[request] ${method} ${url}`);
+    
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      console.log(`[response] ${method} ${url} → ${res.statusCode} (${duration}ms)`);
+    });
+    
+    next();
+  });
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true });
@@ -20,12 +34,14 @@ export function createServer({ router }: CreateServerArgs): Express {
   app.use(router);
 
   // Minimal error handler to keep controllers small.
-  app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (isAppError(err)) {
+      console.error(`[error] ${req.method} ${req.url} → ${err.statusCode} ${err.code}: ${err.message}`);
       res.status(err.statusCode).json({ error: err.code, message: err.message });
       return;
     }
 
+    console.error(`[error] ${req.method} ${req.url} → 500 internalError:`, err);
     res.status(500).json({ error: "internalError", message: "Unexpected error" });
   });
 
