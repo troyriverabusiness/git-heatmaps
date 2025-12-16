@@ -2,6 +2,7 @@ import express, { type Router, type Request, type Response, type NextFunction } 
 
 export type RequestHandler = (req: Request, res: Response) => Promise<void>;
 
+// Router currently contains only 2 controllers
 type CreateRouterArgs = {
   heatmapController: RequestHandler;
   historyController: RequestHandler;

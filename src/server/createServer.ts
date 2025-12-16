@@ -12,7 +12,7 @@ export function createServer({ router }: CreateServerArgs): Express {
 
   app.disable("x-powered-by");
 
-  // Request/response logging middleware
+  // Request/response with logging, no middleware yet.
   app.use((req, res, next) => {
     const start = Date.now();
     const { method, url } = req;

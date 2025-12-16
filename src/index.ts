@@ -41,14 +41,17 @@ const contributionService = createContributionService({
   cache,
 });
 
+// Controllers are "included routers" that handle the request and response.
 const heatmapController = createHeatmapController({ contributionService });
 const historyController = createHistoryController({ contributionService });
 
+// Router is a composition root for the application. It encapsulates the controllers and the routes.
 const router = createRouter({
   heatmapController,
   historyController,
 });
 
+// Server is created with the router.
 const app = createServer({ router });
 
 app.listen(port, () => {
