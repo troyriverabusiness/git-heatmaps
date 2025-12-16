@@ -10,5 +10,9 @@ export {
 export {
   getContributionColor,
   createAdaptiveColorScale,
-  getDefaultColorPalette,
+  getColorPalette,
+  getThemeColorStops,
+  isValidTheme,
+  VALID_THEMES,
+  type HeatmapTheme,
 } from "./colorScale";

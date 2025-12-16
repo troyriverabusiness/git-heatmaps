@@ -7,6 +7,7 @@ import type { ContributionService } from "../services/contributionService";
 import type { ContributionDay } from "../domain/contributions";
 import { renderHeatmapSvg } from "../render";
 import { badRequest, upstreamError } from "../utils/appError";
+import { isValidTheme, VALID_THEMES, type HeatmapTheme } from "../render/shared/colorScale";
 
 export type HeatmapControllerDependencies = {
   contributionService: ContributionService;
@@ -17,19 +18,33 @@ type HeatmapQueryParams = {
   gitlabUsername?: string;
   from?: string;
   to?: string;
+  theme?: HeatmapTheme;
 };
 
 /**
  * Parses query parameters for heatmap request.
  */
 function parseQueryParams(req: Request): HeatmapQueryParams {
-  const { githubUsername, gitlabUsername, from, to } = req.query;
+  const { githubUsername, gitlabUsername, from, to, theme } = req.query;
+
+  // Validate theme parameter
+  let parsedTheme: HeatmapTheme | undefined;
+  if (typeof theme === "string") {
+    const trimmedTheme = theme.trim().toLowerCase();
+    if (trimmedTheme && !isValidTheme(trimmedTheme)) {
+      throw badRequest(
+        `Invalid theme "${theme}". Valid options: ${VALID_THEMES.join(", ")}`
+      );
+    }
+    parsedTheme = isValidTheme(trimmedTheme) ? trimmedTheme : undefined;
+  }
 
   return {
     githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
     gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
     from: typeof from === "string" ? from.trim() : undefined,
     to: typeof to === "string" ? to.trim() : undefined,
+    theme: parsedTheme,
   };
 }
 
@@ -88,9 +103,14 @@ export function createHeatmapController(
     }
 
     const days = toContributionDays(result.contributions);
-    const svg = renderHeatmapSvg({ days });
+    const svg = renderHeatmapSvg({ 
+      days,
+      options: params.theme ? { theme: params.theme } : undefined,
+    });
 
     res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Vary", "Accept-Encoding");
     res.send(svg);
   };
 }

@@ -2,7 +2,7 @@
 
 import type { ContributionDay } from "../../domain/contributions";
 import type { Dimensions } from "../shared/svgTypes";
-import { getDefaultColorPalette } from "../shared/colorScale";
+import { getColorPalette } from "../shared/colorScale";
 import type { HeatmapConfig } from "./heatmapConfig";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,7 +74,7 @@ export function renderLegend(
 ): string {
   if (!config.showLegend) return "";
 
-  const colors = getDefaultColorPalette();
+  const colors = getColorPalette(config.theme);
   const legendCellSize = config.cellSize;
   const legendGap = 3;
   const legendWidth = colors.length * (legendCellSize + legendGap) - legendGap;

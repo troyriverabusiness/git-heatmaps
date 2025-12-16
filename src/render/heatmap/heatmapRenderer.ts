@@ -1,15 +1,15 @@
 // Main heatmap SVG rendering.
 
 import type { ContributionDay } from "../../domain/contributions";
-import { getContributionColor } from "../shared/colorScale";
-import type { HeatmapConfig } from "./heatmapConfig";
-import { defaultHeatmapConfig } from "./heatmapConfig";
+import { getContributionColor, getThemeColorStops } from "../shared/colorScale";
+import type { HeatmapConfig, HeatmapOptions } from "./heatmapConfig";
+import { createHeatmapConfig } from "./heatmapConfig";
 import { groupByWeek, calculateDimensions, createTooltipText } from "./heatmapUtils";
 import { renderMonthLabels, renderDayLabels, renderLegend } from "./heatmapLabels";
 
 export type HeatmapInput = {
   days: ContributionDay[];
-  config?: Partial<HeatmapConfig>;
+  options?: HeatmapOptions;
 };
 
 /**
@@ -21,7 +21,8 @@ function renderCell(
   y: number,
   config: HeatmapConfig
 ): string {
-  const color = getContributionColor(day.count);
+  const colorStops = getThemeColorStops(config.theme);
+  const color = getContributionColor(day.count, colorStops);
   const tooltip = createTooltipText(day);
 
   return `    <rect 
@@ -41,7 +42,7 @@ function renderCell(
  * Renders the complete heatmap SVG.
  */
 export function renderHeatmapSvg(input: HeatmapInput): string {
-  const config: HeatmapConfig = { ...defaultHeatmapConfig, ...input.config };
+  const config: HeatmapConfig = createHeatmapConfig(input.options);
   const weeks = groupByWeek(input.days);
   const dimensions = calculateDimensions(weeks, config);
 

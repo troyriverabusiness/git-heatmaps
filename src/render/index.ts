@@ -2,7 +2,7 @@
 
 // Heatmap
 export { renderHeatmapSvg, type HeatmapInput } from "./heatmap";
-export { type HeatmapConfig, defaultHeatmapConfig } from "./heatmap";
+export { type HeatmapConfig, type HeatmapOptions, createHeatmapConfig } from "./heatmap";
 
 // Line chart
 export { renderLineChartSvg, type LineChartInput } from "./linechart";
@@ -12,7 +12,11 @@ export { type LineChartConfig, defaultLineChartConfig } from "./linechart";
 export {
   getContributionColor,
   createAdaptiveColorScale,
-  getDefaultColorPalette,
+  getColorPalette,
+  getThemeColorStops,
+  isValidTheme,
+  VALID_THEMES,
+  type HeatmapTheme,
 } from "./shared";
 export {
   type Dimensions,
