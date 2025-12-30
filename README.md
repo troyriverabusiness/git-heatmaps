@@ -6,7 +6,7 @@ HTTP server that generates SVG heatmaps and line charts from GitHub and GitLab c
 
 **October - Present = Github contributions**
 
-![](example.png)
+![](heatmap.png)
 
 ## Features
 
@@ -112,6 +112,8 @@ GET /heatmap?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 
 **Response:** SVG image (`image/svg+xml`)
 
+![](heatmap.png)
+
 ### History
 
 Generate a contribution history line chart as an SVG image.
@@ -132,6 +134,8 @@ GET /history?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 \* At least one of `githubUsername` or `gitlabUsername` is required.
 
 **Response:** SVG image (`image/svg+xml`)
+
+![](history.png)
 
 ## Examples
 
