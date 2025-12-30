@@ -2,6 +2,12 @@
 
 HTTP server that generates SVG heatmaps and line charts from GitHub and GitLab contribution data.
 
+**April - September = GitLab contributions** 
+
+**October - Present = Github contributions**
+
+![](example.png)
+
 ## Features
 
 - 📊 **Contribution Heatmaps**: Visualize daily contribution activity with customizable themes
