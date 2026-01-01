@@ -41,7 +41,7 @@ const defaultOptions: Required<HeatmapOptions> = {
   showDayLabels: true,
   showLegend: true,
   labelColor: "#57606a",
-  theme: "github",
+  theme: "default",
 };
 
 export function createHeatmapConfig(options: HeatmapOptions = {}): HeatmapConfig {

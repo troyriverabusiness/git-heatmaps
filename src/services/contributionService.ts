@@ -26,8 +26,7 @@ export type UnifiedContribution = {
 export type AggregatedContributionQuery = {
   githubUsername?: string;
   gitlabUsername?: string;
-  fromDateIso?: string;
-  toDateIso?: string;
+  year: number;
 };
 
 /**
@@ -65,13 +64,12 @@ type ContributionServiceDependencies = {
 /**
  * Builds a cache key from the query parameters.
  */
-function buildCacheKey(query: AggregatedContributionQuery, fromDateIso: string, toDateIso: string): string {
+function buildCacheKey(query: AggregatedContributionQuery): string {
   const parts = [
     'contributions',
     query.githubUsername ? `gh:${query.githubUsername}` : '',
     query.gitlabUsername ? `gl:${query.gitlabUsername}` : '',
-    fromDateIso,
-    toDateIso,
+    query.year.toString(),
   ].filter(Boolean);
   return parts.join(':');
 }
@@ -91,13 +89,10 @@ export function createContributionService(
     async fetchAggregatedContributions(
       query: AggregatedContributionQuery
     ): Promise<AggregatedContributionResult> {
-      const { fromDateIso, toDateIso } = resolveDateRange(
-        query.fromDateIso,
-        query.toDateIso
-      );
+      const { fromDateIso, toDateIso } = getYearDateRange(query.year);
 
       // Check cache first
-      const cacheKey = buildCacheKey(query, fromDateIso, toDateIso);
+      const cacheKey = buildCacheKey(query);
       if (cache) {
         const cached = cache.get<AggregatedContributionResult>(cacheKey);
         if (cached) {
@@ -116,14 +111,13 @@ export function createContributionService(
 
       if (githubService && query.githubUsername) {
         sourcesRequested++;
-        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (${fromDateIso} to ${toDateIso})`);
+        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (year ${query.year})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitHub(
             githubService,
             query.githubUsername,
-            fromDateIso,
-            toDateIso
+            query.year
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -144,14 +138,13 @@ export function createContributionService(
 
       if (gitlabService && query.gitlabUsername) {
         sourcesRequested++;
-        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (${fromDateIso} to ${toDateIso})`);
+        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (year ${query.year})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitLab(
             gitlabService,
             query.gitlabUsername,
-            fromDateIso,
-            toDateIso
+            query.year
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -197,26 +190,13 @@ export function createContributionService(
 }
 
 /**
- * Resolves date range, defaulting to last 365 days if not specified.
+ * Gets the date range for a specific year (Jan 1 to Dec 31).
  */
-function resolveDateRange(
-  fromDateIso?: string,
-  toDateIso?: string
-): { fromDateIso: string; toDateIso: string } {
-  const today = new Date();
-  const resolvedTo = toDateIso ?? formatDateIso(today);
-
-  let resolvedFrom: string;
-  if (fromDateIso) {
-    resolvedFrom = fromDateIso;
-  } else {
-    const oneYearAgo = new Date(today);
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    oneYearAgo.setDate(oneYearAgo.getDate() + 1); // 365 days, not 366
-    resolvedFrom = formatDateIso(oneYearAgo);
-  }
-
-  return { fromDateIso: resolvedFrom, toDateIso: resolvedTo };
+function getYearDateRange(year: number): { fromDateIso: string; toDateIso: string } {
+  return {
+    fromDateIso: `${year}-01-01`,
+    toDateIso: `${year}-12-31`,
+  };
 }
 
 /**
@@ -230,19 +210,16 @@ function formatDateIso(date: Date): string {
  * Fetches contribution data from GitHub.
  *
  * TODO: Add retry logic for transient failures
- * TODO: Add support for pagination if date range spans multiple years
  */
 async function fetchFromGitHub(
   service: GitHubService,
   username: string,
-  fromDateIso: string,
-  toDateIso: string
+  year: number
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "github",
     user: username,
-    fromDateIso,
-    toDateIso,
+    year,
   };
 
   return service.fetchContributionData(query);
@@ -257,14 +234,12 @@ async function fetchFromGitHub(
 async function fetchFromGitLab(
   service: GitLabService,
   username: string,
-  fromDateIso: string,
-  toDateIso: string
+  year: number
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "gitlab",
     user: username,
-    fromDateIso,
-    toDateIso,
+    year,
   };
 
   return service.fetchContributionData(query);

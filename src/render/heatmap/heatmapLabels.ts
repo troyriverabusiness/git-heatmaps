@@ -2,7 +2,7 @@
 
 import type { ContributionDay } from "../../domain/contributions";
 import type { Dimensions } from "../shared/svgTypes";
-import { getColorPalette } from "../shared/colorScale";
+import { getColorPalette, getDefaultThemePalettes } from "../shared/colorScale";
 import type { HeatmapConfig } from "./heatmapConfig";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,6 +74,11 @@ export function renderLegend(
 ): string {
   if (!config.showLegend) return "";
 
+  // "default" theme has a special multi-row legend
+  if (config.theme === "default") {
+    return renderDefaultThemeLegend(dimensions, config);
+  }
+
   const colors = getColorPalette(config.theme);
   const legendCellSize = config.cellSize;
   const legendGap = 3;
@@ -103,6 +108,68 @@ export function renderLegend(
   cells.push(
     `    <text x="${moreX}" y="${y + legendCellSize / 2 + 3}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">More</text>`
   );
+
+  return `  <g class="legend">\n${cells.join("\n")}\n  </g>`;
+}
+
+/**
+ * Renders a horizontal legend for the "default" theme showing all three color scales.
+ * Layout: GitHub [□□□□]  GitLab [□□□□]  Mixed [□□□□]
+ */
+function renderDefaultThemeLegend(
+  dimensions: Dimensions,
+  config: HeatmapConfig
+): string {
+  const palettes = getDefaultThemePalettes();
+  const legendCellSize = config.cellSize;
+  const legendGap = 3;
+  const sectionGap = 16; // Gap between each label+colors section
+
+  // Skip the first color (empty day) for the legend display
+  const githubColors = palettes.github.slice(1);
+  const gitlabColors = palettes.gitlab.slice(1);
+  const mixedColors = palettes.mixed.slice(1);
+
+  const sections = [
+    { label: "GitHub", colors: githubColors },
+    { label: "GitLab", colors: gitlabColors },
+    { label: "Mixed", colors: mixedColors },
+  ];
+
+  // Calculate total width needed
+  const labelWidths = [38, 38, 32]; // Approximate widths for "GitHub", "GitLab", "Mixed"
+  const colorsWidth = githubColors.length * (legendCellSize + legendGap) - legendGap;
+  const totalWidth = sections.reduce((sum, _, i) => 
+    sum + labelWidths[i] + 4 + colorsWidth + (i < sections.length - 1 ? sectionGap : 0), 0
+  );
+
+  // Position legend at bottom right
+  const startX = dimensions.width - config.margin.right - totalWidth;
+  const y = dimensions.height - config.margin.bottom + 12;
+
+  const cells: string[] = [];
+  let currentX = startX;
+
+  sections.forEach((section, sectionIndex) => {
+    // Section label
+    cells.push(
+      `    <text x="${currentX}" y="${y + legendCellSize / 2 + 3}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${section.label}</text>`
+    );
+    currentX += labelWidths[sectionIndex] + 4;
+
+    // Color cells
+    section.colors.forEach((color) => {
+      cells.push(
+        `    <rect x="${currentX}" y="${y}" width="${legendCellSize}" height="${legendCellSize}" rx="${config.cornerRadius}" fill="${color}" />`
+      );
+      currentX += legendCellSize + legendGap;
+    });
+
+    // Add gap between sections (except after last)
+    if (sectionIndex < sections.length - 1) {
+      currentX += sectionGap - legendGap;
+    }
+  });
 
   return `  <g class="legend">\n${cells.join("\n")}\n  </g>`;
 }

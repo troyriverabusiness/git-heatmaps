@@ -16,8 +16,7 @@ export type HeatmapControllerDependencies = {
 type HeatmapQueryParams = {
   githubUsername?: string;
   gitlabUsername?: string;
-  from?: string;
-  to?: string;
+  year: number;
   theme?: HeatmapTheme;
 };
 
@@ -25,7 +24,21 @@ type HeatmapQueryParams = {
  * Parses query parameters for heatmap request.
  */
 function parseQueryParams(req: Request): HeatmapQueryParams {
-  const { githubUsername, gitlabUsername, from, to, theme } = req.query;
+  const { githubUsername, gitlabUsername, year, theme } = req.query;
+
+  // Parse and validate year parameter (defaults to current year)
+  let parsedYear: number;
+  if (typeof year === "string" && year.trim()) {
+    const yearNum = parseInt(year.trim(), 10);
+    if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear()) {
+      throw badRequest(
+        `Invalid year "${year}". Must be a valid year between 2000 and ${new Date().getFullYear()}.`
+      );
+    }
+    parsedYear = yearNum;
+  } else {
+    parsedYear = new Date().getFullYear();
+  }
 
   // Validate theme parameter
   let parsedTheme: HeatmapTheme | undefined;
@@ -42,8 +55,7 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
   return {
     githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
     gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
-    from: typeof from === "string" ? from.trim() : undefined,
-    to: typeof to === "string" ? to.trim() : undefined,
+    year: parsedYear,
     theme: parsedTheme,
   };
 }
@@ -51,13 +63,16 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
 
 /**
  * Transforms unified contributions to ContributionDay array for renderer.
+ * Includes per-platform breakdown for the "default" theme.
  */
 function toContributionDays(
-  contributions: { date: string; total: number }[]
+  contributions: { date: string; total: number; github: number; gitlab: number }[]
 ): ContributionDay[] {
   return contributions.map((c) => ({
     dateIso: c.date,
     count: c.total,
+    github: c.github,
+    gitlab: c.gitlab,
   }));
 }
 
@@ -82,8 +97,7 @@ export function createHeatmapController(
     const result = await contributionService.fetchAggregatedContributions({
       githubUsername: params.githubUsername,
       gitlabUsername: params.gitlabUsername,
-      fromDateIso: params.from,
-      toDateIso: params.to,
+      year: params.year,
     });
 
     // Check for upstream errors - report as 502 if ALL requested sources failed

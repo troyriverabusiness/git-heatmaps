@@ -1,7 +1,7 @@
 // Main heatmap SVG rendering.
 
 import type { ContributionDay } from "../../domain/contributions";
-import { getContributionColor, getThemeColorStops } from "../shared/colorScale";
+import { getContributionColor, getThemeColorStops, getDefaultThemeColor } from "../shared/colorScale";
 import type { HeatmapConfig, HeatmapOptions } from "./heatmapConfig";
 import { createHeatmapConfig } from "./heatmapConfig";
 import { groupByWeek, calculateDimensions, createTooltipText } from "./heatmapUtils";
@@ -13,6 +13,20 @@ export type HeatmapInput = {
 };
 
 /**
+ * Gets the fill color for a contribution cell based on theme.
+ */
+function getCellColor(day: ContributionDay, config: HeatmapConfig): string {
+  // For "default" theme, use source-aware coloring
+  if (config.theme === "default") {
+    return getDefaultThemeColor(day);
+  }
+  
+  // For other themes, use standard color stops
+  const colorStops = getThemeColorStops(config.theme);
+  return getContributionColor(day.count, colorStops);
+}
+
+/**
  * Renders a single cell (rect) element.
  */
 function renderCell(
@@ -21,8 +35,7 @@ function renderCell(
   y: number,
   config: HeatmapConfig
 ): string {
-  const colorStops = getThemeColorStops(config.theme);
-  const color = getContributionColor(day.count, colorStops);
+  const color = getCellColor(day, config);
   const tooltip = createTooltipText(day);
 
   return `    <rect 

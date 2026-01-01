@@ -66,13 +66,16 @@ export function createGitLabService(config: GitLabServiceConfig = {}): GitLabSer
 
   return {
     async fetchContributionData(query: ContributionQuery): Promise<ContributionData> {
-      const events = await fetchUserEvents(client, query.user, query.fromDateIso, query.toDateIso);
+      const fromDateIso = `${query.year}-01-01`;
+      const toDateIso = `${query.year}-12-31`;
+      
+      const events = await fetchUserEvents(client, query.user, fromDateIso, toDateIso);
       console.log(`[gitlab-service] Total events fetched: ${events.length}`);
 
       const aggregated = aggregateEventsByDay(events);
       console.log(`[gitlab-service] Days with contributions (before date filter): ${aggregated.length}`);
 
-      const filtered = filterByDateRange(aggregated, query.fromDateIso, query.toDateIso);
+      const filtered = filterByDateRange(aggregated, fromDateIso, toDateIso);
       console.log(`[gitlab-service] Days with contributions (after date filter): ${filtered.length}`);
 
       return {
@@ -83,9 +86,12 @@ export function createGitLabService(config: GitLabServiceConfig = {}): GitLabSer
     },
 
     async fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory> {
-      const events = await fetchUserEvents(client, query.user, query.fromDateIso, query.toDateIso);
+      const fromDateIso = `${query.year}-01-01`;
+      const toDateIso = `${query.year}-12-31`;
+      
+      const events = await fetchUserEvents(client, query.user, fromDateIso, toDateIso);
       const aggregated = aggregateEventsByDay(events);
-      const filtered = filterByDateRange(aggregated, query.fromDateIso, query.toDateIso);
+      const filtered = filterByDateRange(aggregated, fromDateIso, toDateIso);
 
       return {
         provider: 'gitlab',

@@ -5,6 +5,10 @@ import type { Provider } from "./provider";
 export type ContributionDay = {
   dateIso: string;
   count: number;
+  /** GitHub contribution count for this day (optional, used by "default" theme) */
+  github?: number;
+  /** GitLab contribution count for this day (optional, used by "default" theme) */
+  gitlab?: number;
 };
 
 export type ContributionHistoryPoint = {
@@ -15,8 +19,7 @@ export type ContributionHistoryPoint = {
 export type ContributionQuery = {
   provider: Provider;
   user: string;
-  fromDateIso?: string;
-  toDateIso?: string;
+  year: number;
 };
 
 export type ContributionData = {

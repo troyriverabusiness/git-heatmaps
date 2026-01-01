@@ -1,14 +1,51 @@
 // Color scale logic for contribution heatmaps with theme support.
 
 import type { ColorStop } from "./svgTypes";
+import type { ContributionDay } from "../../domain/contributions";
 
 // Theme definitions
-export type HeatmapTheme = "github" | "gitlab" | "ice" | "fire" | "candy" | "rainbow" | "neon";
+export type HeatmapTheme = "default" | "github" | "gitlab" | "ice" | "fire" | "candy" | "rainbow" | "neon";
 
-export const VALID_THEMES: HeatmapTheme[] = ["github", "gitlab", "ice", "fire", "candy", "rainbow", "neon"];
+export const VALID_THEMES: HeatmapTheme[] = ["default", "github", "gitlab", "ice", "fire", "candy", "rainbow", "neon"];
+
+// "default" theme palettes - uses different colors based on contribution source
+export const DEFAULT_THEME_PALETTES = {
+  /** GitHub-only contributions: green shades */
+  github: [
+    { threshold: 0, color: "#ebedf0" },
+    { threshold: 1, color: "#9be9a8" },
+    { threshold: 4, color: "#40c463" },
+    { threshold: 8, color: "#30a14e" },
+    { threshold: 12, color: "#216e39" },
+  ],
+  /** GitLab-only contributions: orange shades */
+  gitlab: [
+    { threshold: 0, color: "#ebedf0" },
+    { threshold: 1, color: "#fcd9b6" },
+    { threshold: 4, color: "#faaa61" },
+    { threshold: 8, color: "#e57435" },
+    { threshold: 12, color: "#C24E00" },
+  ],
+  /** Mixed contributions (both platforms): pink shades */
+  mixed: [
+    { threshold: 0, color: "#ebedf0" },
+    { threshold: 1, color: "#f8bbd9" },
+    { threshold: 4, color: "#f06292" },
+    { threshold: 8, color: "#e91e8b" },
+    { threshold: 12, color: "#ad1457" },
+  ],
+} as const;
 
 // Theme color palettes
 const themePalettes: Record<HeatmapTheme, ColorStop[]> = {
+  // "default" uses GitHub palette as base; actual coloring is handled by getDefaultThemeColor
+  default: [
+    { threshold: 0, color: "#ebedf0" },
+    { threshold: 1, color: "#9be9a8" },
+    { threshold: 4, color: "#40c463" },
+    { threshold: 8, color: "#30a14e" },
+    { threshold: 12, color: "#216e39" },
+  ],
   github: [
     { threshold: 0, color: "#ebedf0" },
     { threshold: 1, color: "#9be9a8" },
@@ -94,6 +131,44 @@ export function getContributionColor(count: number, stops: ColorStop[] = themePa
 }
 
 /**
+ * Determines the contribution source type for a day.
+ */
+export type ContributionSource = "none" | "github" | "gitlab" | "mixed";
+
+/**
+ * Gets the contribution source based on platform-specific counts.
+ */
+export function getContributionSource(day: ContributionDay): ContributionSource {
+  const hasGithub = (day.github ?? 0) > 0;
+  const hasGitlab = (day.gitlab ?? 0) > 0;
+
+  if (hasGithub && hasGitlab) return "mixed";
+  if (hasGithub) return "github";
+  if (hasGitlab) return "gitlab";
+  return "none";
+}
+
+/**
+ * Returns the color for the "default" theme based on contribution source.
+ * - GitHub-only: green shades
+ * - GitLab-only: orange shades
+ * - Mixed (both platforms): pink shades
+ */
+export function getDefaultThemeColor(day: ContributionDay): string {
+  const source = getContributionSource(day);
+  
+  if (source === "none") {
+    return DEFAULT_THEME_PALETTES.github[0].color; // Empty day color
+  }
+
+  const palette = source === "mixed" 
+    ? DEFAULT_THEME_PALETTES.mixed 
+    : DEFAULT_THEME_PALETTES[source];
+  
+  return getContributionColor(day.count, [...palette]);
+}
+
+/**
  * Creates a custom color scale based on the max contribution count.
  * Distributes thresholds evenly across the range.
  */
@@ -118,4 +193,20 @@ export function createAdaptiveColorScale(maxCount: number, theme: HeatmapTheme =
  */
 export function getColorPalette(theme: HeatmapTheme = "github"): string[] {
   return getThemeColorStops(theme).map(stop => stop.color);
+}
+
+/**
+ * Returns all three color palettes for the "default" theme legend.
+ * Used to display a multi-row legend showing GitHub/GitLab/Mixed colors.
+ */
+export function getDefaultThemePalettes(): { 
+  github: string[]; 
+  gitlab: string[]; 
+  mixed: string[]; 
+} {
+  return {
+    github: DEFAULT_THEME_PALETTES.github.map(stop => stop.color),
+    gitlab: DEFAULT_THEME_PALETTES.gitlab.map(stop => stop.color),
+    mixed: DEFAULT_THEME_PALETTES.mixed.map(stop => stop.color),
+  };
 }

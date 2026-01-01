@@ -6,7 +6,7 @@ import type { Request, Response } from "express";
 import type { ContributionService } from "../services/contributionService";
 import type { ContributionHistoryPoint } from "../domain/contributions";
 import { renderLineChartSvg } from "../render";
-import { upstreamError } from "../utils/appError";
+import { badRequest, upstreamError } from "../utils/appError";
 
 export type HistoryControllerDependencies = {
   contributionService: ContributionService;
@@ -15,21 +15,33 @@ export type HistoryControllerDependencies = {
 type HistoryQueryParams = {
   githubUsername?: string;
   gitlabUsername?: string;
-  from?: string;
-  to?: string;
+  year: number;
 };
 
 /**
  * Parses query parameters for history request.
  */
 function parseQueryParams(req: Request): HistoryQueryParams {
-  const { githubUsername, gitlabUsername, from, to } = req.query;
+  const { githubUsername, gitlabUsername, year } = req.query;
+
+  // Parse and validate year parameter (defaults to current year)
+  let parsedYear: number;
+  if (typeof year === "string" && year.trim()) {
+    const yearNum = parseInt(year.trim(), 10);
+    if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear()) {
+      throw badRequest(
+        `Invalid year "${year}". Must be a valid year between 2000 and ${new Date().getFullYear()}.`
+      );
+    }
+    parsedYear = yearNum;
+  } else {
+    parsedYear = new Date().getFullYear();
+  }
 
   return {
     githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
     gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
-    from: typeof from === "string" ? from.trim() : undefined,
-    to: typeof to === "string" ? to.trim() : undefined,
+    year: parsedYear,
   };
 }
 
@@ -60,8 +72,7 @@ export function createHistoryController(
     const result = await contributionService.fetchAggregatedContributions({
       githubUsername: params.githubUsername,
       gitlabUsername: params.gitlabUsername,
-      fromDateIso: params.from,
-      toDateIso: params.to,
+      year: params.year,
     });
 
     // Check for upstream errors - report as 502
