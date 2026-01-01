@@ -15,7 +15,7 @@ HTTP server that generates SVG heatmaps and line charts from GitHub and GitLab c
 - 🔄 **Multi-Provider Support**: Aggregate data from both GitHub and GitLab simultaneously
 - 🏢 **Self-Hosted GitLab**: Support for self-hosted GitLab instances (e.g., university deployments)
 - ⚡ **Caching**: Built-in memory cache for improved performance
-- 🎨 **Customizable Themes**: Multiple color themes including GitHub, GitLab, and custom options
+- 🎨 **Customizable Themes**: Multiple color themes including source-aware default theme, GitHub, GitLab, and custom options
 
 ## Prerequisites
 
@@ -92,10 +92,10 @@ Returns the health status of the service.
 
 ### Heatmap
 
-Generate a contribution heatmap as an SVG image.
+Generate a contribution heatmap as an SVG image for a specific year.
 
 ```http
-GET /heatmap?githubUsername={username}&gitlabUsername={username}&from={date}&to={date}&theme={theme}
+GET /heatmap?githubUsername={username}&gitlabUsername={username}&year={year}&theme={theme}
 ```
 
 **Query Parameters:**
@@ -104,9 +104,8 @@ GET /heatmap?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 |-----------|------|----------|-------------|
 | `githubUsername` | string | Yes* | GitHub username |
 | `gitlabUsername` | string | Yes* | GitLab username |
-| `from` | string (ISO 8601) | No | Start date (e.g., `2024-01-01`) |
-| `to` | string (ISO 8601) | No | End date (e.g., `2024-12-31`) |
-| `theme` | string | No | Color theme: `github`, `gitlab`, `ice`, `fire`, `candy`, `rainbow`, `neon` (default: `github`) |
+| `year` | number | No | Year to display (e.g., `2024`). Defaults to current year if not provided. Must be between 2000 and current year. |
+| `theme` | string | No | Color theme: `default`, `github`, `gitlab`, `ice`, `fire`, `candy`, `rainbow`, `neon` (default: `default`) |
 
 \* At least one of `githubUsername` or `gitlabUsername` is required.
 
@@ -116,10 +115,10 @@ GET /heatmap?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 
 ### History
 
-Generate a contribution history line chart as an SVG image.
+Generate a contribution history line chart as an SVG image for a specific year.
 
 ```http
-GET /history?githubUsername={username}&gitlabUsername={username}&from={date}&to={date}
+GET /history?githubUsername={username}&gitlabUsername={username}&year={year}
 ```
 
 **Query Parameters:**
@@ -128,8 +127,7 @@ GET /history?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 |-----------|------|----------|-------------|
 | `githubUsername` | string | Yes* | GitHub username |
 | `gitlabUsername` | string | Yes* | GitLab username |
-| `from` | string (ISO 8601) | No | Start date (e.g., `2024-01-01`) |
-| `to` | string (ISO 8601) | No | End date (e.g., `2024-12-31`) |
+| `year` | number | No | Year to display (e.g., `2024`). Defaults to current year if not provided. Must be between 2000 and current year. |
 
 \* At least one of `githubUsername` or `gitlabUsername` is required.
 
@@ -142,36 +140,37 @@ GET /history?githubUsername={username}&gitlabUsername={username}&from={date}&to=
 ### GitHub Heatmap
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&theme=github" > heatmap.svg
+curl "http://localhost:3000/heatmap?githubUsername=octocat&year=2024&theme=github" > heatmap.svg
 ```
 
 ### GitLab Heatmap (Self-Hosted Instance)
 
 ```bash
-curl "http://localhost:3000/heatmap?gitlabUsername=someUser&theme=gitlab" > heatmap.svg
+curl "http://localhost:3000/heatmap?gitlabUsername=someUser&year=2024&theme=gitlab" > heatmap.svg
 ```
 
 ### Combined GitHub and GitLab Heatmap
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&gitlabUsername=someUser&theme=fire" > heatmap.svg
+curl "http://localhost:3000/heatmap?githubUsername=octocat&gitlabUsername=someUser&year=2024&theme=fire" > heatmap.svg
 ```
 
-### Date Range Heatmap
+### Year-Specific Heatmap
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&from=2024-01-01&to=2024-12-31&theme=ice" > heatmap.svg
+curl "http://localhost:3000/heatmap?githubUsername=octocat&year=2024&theme=ice" > heatmap.svg
 ```
 
 ### History Chart
 
 ```bash
-curl "http://localhost:3000/history?githubUsername=octocat&gitlabUsername=someUser" > history.svg
+curl "http://localhost:3000/history?githubUsername=octocat&gitlabUsername=someUser&year=2024" > history.svg
 ```
 
 ### Available Themes
 
-- `github` - GitHub's classic green theme (default)
+- `default` - Source-aware theme: green for GitHub-only, orange for GitLab-only, pink for mixed contributions
+- `github` - GitHub's classic green theme
 - `gitlab` - GitLab's orange theme
 - `ice` - Cool blue gradient
 - `fire` - Warm orange-red gradient
