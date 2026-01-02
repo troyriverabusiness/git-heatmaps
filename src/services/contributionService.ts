@@ -26,7 +26,8 @@ export type UnifiedContribution = {
 export type AggregatedContributionQuery = {
   githubUsername?: string;
   gitlabUsername?: string;
-  year: number;
+  fromDate: string; // YYYY-MM-DD
+  toDate: string;   // YYYY-MM-DD
 };
 
 /**
@@ -69,7 +70,7 @@ function buildCacheKey(query: AggregatedContributionQuery): string {
     'contributions',
     query.githubUsername ? `gh:${query.githubUsername}` : '',
     query.gitlabUsername ? `gl:${query.gitlabUsername}` : '',
-    query.year.toString(),
+    `${query.fromDate}_${query.toDate}`,
   ].filter(Boolean);
   return parts.join(':');
 }
@@ -89,7 +90,7 @@ export function createContributionService(
     async fetchAggregatedContributions(
       query: AggregatedContributionQuery
     ): Promise<AggregatedContributionResult> {
-      const { fromDateIso, toDateIso } = getYearDateRange(query.year);
+      const { fromDate, toDate } = query;
 
       // Check cache first
       const cacheKey = buildCacheKey(query);
@@ -111,13 +112,14 @@ export function createContributionService(
 
       if (githubService && query.githubUsername) {
         sourcesRequested++;
-        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (year ${query.year})`);
+        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitHub(
             githubService,
             query.githubUsername,
-            query.year
+            fromDate,
+            toDate
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -138,13 +140,14 @@ export function createContributionService(
 
       if (gitlabService && query.gitlabUsername) {
         sourcesRequested++;
-        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (year ${query.year})`);
+        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitLab(
             gitlabService,
             query.gitlabUsername,
-            query.year
+            fromDate,
+            toDate
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -168,8 +171,8 @@ export function createContributionService(
       // Merge and normalize results
       const contributions = mergeContributions(
         sourceResults,
-        fromDateIso,
-        toDateIso
+        fromDate,
+        toDate
       );
 
       const result: AggregatedContributionResult = {
@@ -190,16 +193,6 @@ export function createContributionService(
 }
 
 /**
- * Gets the date range for a specific year (Jan 1 to Dec 31).
- */
-function getYearDateRange(year: number): { fromDateIso: string; toDateIso: string } {
-  return {
-    fromDateIso: `${year}-01-01`,
-    toDateIso: `${year}-12-31`,
-  };
-}
-
-/**
  * Formats a Date as YYYY-MM-DD string.
  */
 function formatDateIso(date: Date): string {
@@ -214,12 +207,14 @@ function formatDateIso(date: Date): string {
 async function fetchFromGitHub(
   service: GitHubService,
   username: string,
-  year: number
+  fromDate: string,
+  toDate: string
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "github",
     user: username,
-    year,
+    fromDate,
+    toDate,
   };
 
   return service.fetchContributionData(query);
@@ -234,12 +229,14 @@ async function fetchFromGitHub(
 async function fetchFromGitLab(
   service: GitLabService,
   username: string,
-  year: number
+  fromDate: string,
+  toDate: string
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "gitlab",
     user: username,
-    year,
+    fromDate,
+    toDate,
   };
 
   return service.fetchContributionData(query);

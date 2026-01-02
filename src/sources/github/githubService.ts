@@ -53,8 +53,8 @@ async function fetchContributionCalendar(
   const variables: Record<string, unknown> = {
     username: query.user,
     // GitHub expects ISO 8601 datetime format
-    from: `${query.year}-01-01T00:00:00Z`,
-    to: `${query.year}-12-31T23:59:59Z`,
+    from: `${query.fromDate}T00:00:00Z`,
+    to: `${query.toDate}T23:59:59Z`,
   };
 
   const result = await client.query<GitHubContributionCalendarResponse>(

@@ -19,7 +19,8 @@ export type ContributionHistoryPoint = {
 export type ContributionQuery = {
   provider: Provider;
   user: string;
-  year: number;
+  fromDate: string; // YYYY-MM-DD
+  toDate: string;   // YYYY-MM-DD
 };
 
 export type ContributionData = {

@@ -16,9 +16,42 @@ export type HeatmapControllerDependencies = {
 type HeatmapQueryParams = {
   githubUsername?: string;
   gitlabUsername?: string;
-  year: number;
+  fromDate: string; // YYYY-MM-DD
+  toDate: string;   // YYYY-MM-DD
   theme?: HeatmapTheme;
 };
+
+/**
+ * Formats a Date as YYYY-MM-DD string.
+ */
+function formatDateIso(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
+/**
+ * Calculates date range based on year parameter.
+ * - If year is provided: returns Jan 1 to Dec 31 of that year
+ * - If no year: returns rolling year (today - 1 year to today, like GitHub)
+ */
+function getDateRange(year?: number): { fromDate: string; toDate: string } {
+  if (year !== undefined) {
+    return {
+      fromDate: `${year}-01-01`,
+      toDate: `${year}-12-31`,
+    };
+  }
+
+  // Rolling year: from today - 1 year to today
+  const today = new Date();
+  const oneYearAgo = new Date(today);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  oneYearAgo.setDate(oneYearAgo.getDate() + 1); // Start day after, so we get exactly 365/366 days
+
+  return {
+    fromDate: formatDateIso(oneYearAgo),
+    toDate: formatDateIso(today),
+  };
+}
 
 /**
  * Parses query parameters for heatmap request.
@@ -26,8 +59,8 @@ type HeatmapQueryParams = {
 function parseQueryParams(req: Request): HeatmapQueryParams {
   const { githubUsername, gitlabUsername, year, theme } = req.query;
 
-  // Parse and validate year parameter (defaults to current year)
-  let parsedYear: number;
+  // Parse and validate year parameter (optional - if not provided, uses rolling year)
+  let parsedYear: number | undefined;
   if (typeof year === "string" && year.trim()) {
     const yearNum = parseInt(year.trim(), 10);
     if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear()) {
@@ -36,9 +69,9 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
       );
     }
     parsedYear = yearNum;
-  } else {
-    parsedYear = new Date().getFullYear();
   }
+
+  const { fromDate, toDate } = getDateRange(parsedYear);
 
   // Validate theme parameter
   let parsedTheme: HeatmapTheme | undefined;
@@ -55,7 +88,8 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
   return {
     githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
     gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
-    year: parsedYear,
+    fromDate,
+    toDate,
     theme: parsedTheme,
   };
 }
@@ -97,7 +131,8 @@ export function createHeatmapController(
     const result = await contributionService.fetchAggregatedContributions({
       githubUsername: params.githubUsername,
       gitlabUsername: params.gitlabUsername,
-      year: params.year,
+      fromDate: params.fromDate,
+      toDate: params.toDate,
     });
 
     // Check for upstream errors - report as 502 if ALL requested sources failed
