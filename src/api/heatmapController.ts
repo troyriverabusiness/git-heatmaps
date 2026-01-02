@@ -105,8 +105,8 @@ function toContributionDays(
   return contributions.map((c) => ({
     dateIso: c.date,
     count: c.total,
-    github: c.github,
-    gitlab: c.gitlab,
+    githubCount: c.github,
+    gitlabCount: c.gitlab,
   }));
 }
 

@@ -139,8 +139,8 @@ export type ContributionSource = "none" | "github" | "gitlab" | "mixed";
  * Gets the contribution source based on platform-specific counts.
  */
 export function getContributionSource(day: ContributionDay): ContributionSource {
-  const hasGithub = (day.github ?? 0) > 0;
-  const hasGitlab = (day.gitlab ?? 0) > 0;
+  const hasGithub = (day.githubCount ?? 0) > 0;
+  const hasGitlab = (day.gitlabCount ?? 0) > 0;
 
   if (hasGithub && hasGitlab) return "mixed";
   if (hasGithub) return "github";
