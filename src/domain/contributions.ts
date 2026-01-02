@@ -6,9 +6,9 @@ export type ContributionDay = {
   dateIso: string;
   count: number;
   /** GitHub contribution count for this day (optional, used by "default" theme) */
-  github?: number;
+  githubCount?: number;
   /** GitLab contribution count for this day (optional, used by "default" theme) */
-  gitlab?: number;
+  gitlabCount?: number;
 };
 
 export type ContributionHistoryPoint = {
