@@ -62,11 +62,14 @@ export function patternToContributionDays(
           patternRow >= 0 &&
           patternRow < patternHeight &&
           patternCol >= 0 &&
-          patternCol < patternWidth &&
-          pattern.pattern[patternRow]?.[patternCol] === 1
+          patternCol < patternWidth
         ) {
-          // High contribution count to make it visible
-          count = 20;
+          const patternValue = pattern.pattern[patternRow]?.[patternCol] || 0;
+          // Map pattern values 1-4 to contribution counts:
+          // 1 → 1 (lightest), 2 → 4, 3 → 8, 4 → 12 (darkest)
+          if (patternValue >= 1 && patternValue <= 4) {
+            count = patternValue === 1 ? 1 : patternValue === 2 ? 4 : patternValue === 3 ? 8 : 12;
+          }
         }
       }
       
@@ -113,11 +116,18 @@ export function patternToContributionDaysCompact(
       if (currentDate > endDate) break;
       
       const dateIso = currentDate.toISOString().split("T")[0];
-      const isFilled = pattern.pattern[row]?.[col] === 1;
+      const patternValue = pattern.pattern[row]?.[col] || 0;
+      
+      // Map pattern values 1-4 to contribution counts:
+      // 1 → 1 (lightest), 2 → 4, 3 → 8, 4 → 12 (darkest)
+      let count = 0;
+      if (patternValue >= 1 && patternValue <= 4) {
+        count = patternValue === 1 ? 1 : patternValue === 2 ? 4 : patternValue === 3 ? 8 : 12;
+      }
       
       days.push({
         dateIso,
-        count: isFilled ? 20 : 0,
+        count,
       });
       
       // Move to next day (we go column by column, so each column is a day)
@@ -212,11 +222,13 @@ export function patternToContributionDaysGrid(
         const dayOfWeek = date.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         
         // Check if this day matches the pattern
-        if (
-          dayOfWeek < patternHeight &&
-          pattern.pattern[dayOfWeek]?.[patternWeek] === 1
-        ) {
-          day.count = 20;
+        if (dayOfWeek < patternHeight) {
+          const patternValue = pattern.pattern[dayOfWeek]?.[patternWeek] || 0;
+          // Map pattern values 1-4 to contribution counts:
+          // 1 → 1 (lightest), 2 → 4, 3 → 8, 4 → 12 (darkest)
+          if (patternValue >= 1 && patternValue <= 4) {
+            day.count = patternValue === 1 ? 1 : patternValue === 2 ? 4 : patternValue === 3 ? 8 : 12;
+          }
         }
       });
     }
