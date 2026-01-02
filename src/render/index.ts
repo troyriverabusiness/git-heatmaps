@@ -8,6 +8,17 @@ export { type HeatmapConfig, type HeatmapOptions, createHeatmapConfig } from "./
 export { renderLineChartSvg, type LineChartInput } from "./linechart";
 export { type LineChartConfig, defaultLineChartConfig } from "./linechart";
 
+// Art
+export {
+  type PixelArtPattern,
+  ART_PATTERNS,
+  getArtPatternById,
+  getArtPatternCount,
+  patternToContributionDays,
+  patternToContributionDaysCompact,
+  patternToContributionDaysGrid,
+} from "./art";
+
 // Shared utilities
 export {
   getContributionColor,

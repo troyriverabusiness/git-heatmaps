@@ -2,10 +2,11 @@ import express, { type Router, type Request, type Response, type NextFunction } 
 
 export type RequestHandler = (req: Request, res: Response) => Promise<void>;
 
-// Router currently contains only 2 controllers
+// Router currently contains 3 controllers
 type CreateRouterArgs = {
   heatmapController: RequestHandler;
   historyController: RequestHandler;
+  artController: RequestHandler;
 };
 
 function asyncHandler(
@@ -16,11 +17,12 @@ function asyncHandler(
   };
 }
 
-export function createRouter({ heatmapController, historyController }: CreateRouterArgs): Router {
+export function createRouter({ heatmapController, historyController, artController }: CreateRouterArgs): Router {
   const router = express.Router();
 
   router.get("/heatmap", asyncHandler(heatmapController));
   router.get("/history", asyncHandler(historyController));
+  router.get("/art", asyncHandler(artController));
 
   return router;
 }

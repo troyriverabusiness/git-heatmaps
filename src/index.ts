@@ -3,6 +3,7 @@ import { createRouter } from "./server/router";
 
 import { createHeatmapController } from "./api/heatmapController";
 import { createHistoryController } from "./api/historyController";
+import { createArtController } from "./api/artController";
 
 import { createContributionService } from "./services/contributionService";
 import { createMemoryCache } from "./cache";
@@ -44,11 +45,13 @@ const contributionService = createContributionService({
 // Controllers are "included routers" that handle the request and response.
 const heatmapController = createHeatmapController({ contributionService });
 const historyController = createHistoryController({ contributionService });
+const artController = createArtController();
 
 // Router is a composition root for the application. It encapsulates the controllers and the routes.
 const router = createRouter({
   heatmapController,
   historyController,
+  artController,
 });
 
 // Server is created with the router.
