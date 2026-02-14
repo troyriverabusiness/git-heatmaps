@@ -27,3 +27,15 @@ export const contributionCalendarQuery = `
     }
   }
 `;
+
+/**
+ * Query to fetch the authenticated user's login (username).
+ * Used to resolve username from an access token.
+ */
+export const viewerQuery = `
+  query {
+    viewer {
+      login
+    }
+  }
+`;

@@ -18,6 +18,7 @@ export type GraphQlResponse<T> = {
 
 export type GitHubClient = {
   query<T>(graphql: string, variables?: Record<string, unknown>): Promise<GraphQlResponse<T>>;
+  getAuthenticatedUser(): Promise<string>;
 };
 
 /**
@@ -33,7 +34,7 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
   return {
     async query<T>(graphql: string, variables?: Record<string, unknown>): Promise<GraphQlResponse<T>> {
       console.log(`[github-client] POST /graphql (user: ${variables?.username ?? "unknown"})`);
-      
+
       const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {
         method: "POST",
         headers: {
@@ -54,14 +55,51 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
         console.error(`[github-client] Error response body: ${errorBody}`);
         throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
       }
-      
+
       const json = await response.json() as GraphQlResponse<T>;
-      
+
       if (json.errors) {
         console.error(`[github-client] GraphQL errors:`, json.errors);
       }
-      
+
       return json;
+    },
+
+    async getAuthenticatedUser(): Promise<string> {
+      console.log(`[github-client] Fetching authenticated user`);
+
+      const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+          "User-Agent": "git-heatmaps",
+        },
+        body: JSON.stringify({
+          query: `query { viewer { login } }`,
+        }),
+      });
+
+      console.log(`[github-client] Response: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[github-client] Error response body: ${errorBody}`);
+        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+      }
+
+      const json = await response.json() as GraphQlResponse<{ viewer: { login: string } }>;
+
+      if (json.errors && json.errors.length > 0) {
+        console.error(`[github-client] GraphQL errors:`, json.errors);
+        throw new Error(`GitHub authentication failed: ${json.errors[0].message}`);
+      }
+
+      if (!json.data?.viewer?.login) {
+        throw new Error("GitHub API returned no user data");
+      }
+
+      return json.data.viewer.login;
     },
   };
 }

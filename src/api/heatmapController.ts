@@ -14,8 +14,9 @@ export type HeatmapControllerDependencies = {
 };
 
 type HeatmapQueryParams = {
-  githubUsername?: string;
-  gitlabUsername?: string;
+  githubToken?: string;
+  gitlabToken?: string;
+  gitlabBaseUrl?: string;
   fromDate: string; // YYYY-MM-DD
   toDate: string;   // YYYY-MM-DD
   theme?: HeatmapTheme;
@@ -53,16 +54,35 @@ function getDateRange(year?: number): { fromDate: string; toDate: string } {
   };
 }
 
+/** Read optional string query param (all query params are lowercase). */
+function q(req: Request, key: string): string | undefined {
+  const raw = req.query[key] as string | undefined;
+  return typeof raw === "string" ? raw.trim() || undefined : undefined;
+}
+
 /**
  * Parses query parameters for heatmap request.
+ * All query parameter names are lowercase.
  */
 function parseQueryParams(req: Request): HeatmapQueryParams {
-  const { githubUsername, gitlabUsername, year, theme } = req.query;
+  const parsedGithubToken = q(req, "githubtoken");
+  const parsedGitlabToken = q(req, "gitlabtoken");
+  const gitlabBaseUrl = q(req, "gitlabbaseurl");
+  const year = q(req, "year");
+  const theme = q(req, "theme");
+
+  // Validate token format (if provided, must be non-empty)
+  if (parsedGithubToken !== undefined && parsedGithubToken === "") {
+    throw badRequest("Invalid GitHub token format");
+  }
+  if (parsedGitlabToken !== undefined && parsedGitlabToken === "") {
+    throw badRequest("Invalid GitLab token format");
+  }
 
   // Parse and validate year parameter (optional - if not provided, uses rolling year)
   let parsedYear: number | undefined;
-  if (typeof year === "string" && year.trim()) {
-    const yearNum = parseInt(year.trim(), 10);
+  if (year) {
+    const yearNum = parseInt(year, 10);
     if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear()) {
       throw badRequest(
         `Invalid year "${year}". Must be a valid year between 2000 and ${new Date().getFullYear()}.`
@@ -75,8 +95,8 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
 
   // Validate theme parameter
   let parsedTheme: HeatmapTheme | undefined;
-  if (typeof theme === "string") {
-    const trimmedTheme = theme.trim().toLowerCase();
+  if (theme) {
+    const trimmedTheme = theme.toLowerCase();
     if (trimmedTheme && !isValidTheme(trimmedTheme)) {
       throw badRequest(
         `Invalid theme "${theme}". Valid options: ${VALID_THEMES.join(", ")}`
@@ -86,8 +106,9 @@ function parseQueryParams(req: Request): HeatmapQueryParams {
   }
 
   return {
-    githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
-    gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
+    githubToken: parsedGithubToken,
+    gitlabToken: parsedGitlabToken,
+    gitlabBaseUrl: gitlabBaseUrl || undefined,
     fromDate,
     toDate,
     theme: parsedTheme,
@@ -121,16 +142,17 @@ export function createHeatmapController(
   return async (req: Request, res: Response): Promise<void> => {
     const params = parseQueryParams(req);
 
-    // Require at least one username
-    if (!params.githubUsername && !params.gitlabUsername) {
+    // Require at least one token
+    if (!params.githubToken && !params.gitlabToken) {
       throw badRequest(
-        "At least one username is required. Provide githubUsername and/or gitlabUsername."
+        "At least one token is required. Provide githubtoken and/or gitlabtoken."
       );
     }
 
     const result = await contributionService.fetchAggregatedContributions({
-      githubUsername: params.githubUsername,
-      gitlabUsername: params.gitlabUsername,
+      githubToken: params.githubToken,
+      gitlabToken: params.gitlabToken,
+      gitlabBaseUrl: params.gitlabBaseUrl,
       fromDate: params.fromDate,
       toDate: params.toDate,
     });
@@ -152,7 +174,7 @@ export function createHeatmapController(
     }
 
     const days = toContributionDays(result.contributions);
-    const svg = renderHeatmapSvg({ 
+    const svg = renderHeatmapSvg({
       days,
       options: params.theme ? { theme: params.theme } : undefined,
     });
@@ -160,6 +182,7 @@ export function createHeatmapController(
     res.setHeader("Content-Type", "image/svg+xml");
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.setHeader("Vary", "Accept-Encoding");
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.send(svg);
   };
 }

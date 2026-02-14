@@ -26,6 +26,10 @@ export type UnifiedContribution = {
 export type AggregatedContributionQuery = {
   githubUsername?: string;
   gitlabUsername?: string;
+  githubToken?: string;
+  gitlabToken?: string;
+  /** Optional GitLab instance base URL (e.g. for self-hosted). Overrides server GITLAB_BASE_URL when set. */
+  gitlabBaseUrl?: string;
   fromDate: string; // YYYY-MM-DD
   toDate: string;   // YYYY-MM-DD
 };
@@ -36,7 +40,7 @@ export type AggregatedContributionQuery = {
 export type AggregatedContributionResult = {
   contributions: UnifiedContribution[];
   errors: SourceError[];
-  /** Number of sources that were requested (had username provided) */
+  /** Number of sources that were requested (had token; username resolved from token) */
   sourcesRequested: number;
   /** Number of sources that returned data successfully */
   sourcesSucceeded: number;
@@ -92,8 +96,44 @@ export function createContributionService(
     ): Promise<AggregatedContributionResult> {
       const { fromDate, toDate } = query;
 
-      // Check cache first
-      const cacheKey = buildCacheKey(query);
+      // Resolve usernames from tokens if needed
+      let githubUsername = query.githubUsername;
+      let gitlabUsername = query.gitlabUsername;
+
+      // GitHub username resolution
+      if (query.githubToken && !githubUsername && githubService) {
+        try {
+          console.log(`[service] Resolving GitHub username from token`);
+          githubUsername = await githubService.fetchAuthenticatedUsername(query.githubToken);
+          console.log(`[service] Resolved GitHub username: ${githubUsername}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[service] Failed to resolve GitHub username: ${message}`);
+          throw new Error(`Invalid GitHub token: ${message}`);
+        }
+      }
+
+      // GitLab username resolution
+      if (query.gitlabToken && !gitlabUsername && gitlabService) {
+        try {
+          console.log(`[service] Resolving GitLab username from token`);
+          gitlabUsername = await gitlabService.fetchAuthenticatedUsername(
+            query.gitlabToken,
+            query.gitlabBaseUrl
+          );
+          console.log(`[service] Resolved GitLab username: ${gitlabUsername}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[service] Failed to resolve GitLab username: ${message}`);
+          throw new Error(`Invalid GitLab token: ${message}`);
+        }
+      }
+
+      // Build cache key with resolved usernames
+      const cacheQuery = { ...query, githubUsername, gitlabUsername };
+      const cacheKey = buildCacheKey(cacheQuery);
+
+      // Check cache
       if (cache) {
         const cached = cache.get<AggregatedContributionResult>(cacheKey);
         if (cached) {
@@ -107,19 +147,19 @@ export function createContributionService(
       let sourcesRequested = 0;
 
       // Fetch from available sources in parallel
-      // Each source is queried if the service exists AND a username is provided
       const fetchPromises: Promise<void>[] = [];
 
-      if (githubService && query.githubUsername) {
+      if (githubService && githubUsername) {
         sourcesRequested++;
-        console.log(`[source] GitHub: fetching contributions for user "${query.githubUsername}" (${fromDate} to ${toDate})`);
+        console.log(`[source] GitHub: fetching contributions for user "${githubUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitHub(
             githubService,
-            query.githubUsername,
+            githubUsername,
             fromDate,
-            toDate
+            toDate,
+            query.githubToken
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -138,16 +178,18 @@ export function createContributionService(
         );
       }
 
-      if (gitlabService && query.gitlabUsername) {
+      if (gitlabService && gitlabUsername) {
         sourcesRequested++;
-        console.log(`[source] GitLab: fetching contributions for user "${query.gitlabUsername}" (${fromDate} to ${toDate})`);
+        console.log(`[source] GitLab: fetching contributions for user "${gitlabUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
         fetchPromises.push(
           fetchFromGitLab(
             gitlabService,
-            query.gitlabUsername,
+            gitlabUsername,
             fromDate,
-            toDate
+            toDate,
+            query.gitlabToken,
+            query.gitlabBaseUrl
           )
             .then((data) => {
               const duration = Date.now() - startTime;
@@ -208,7 +250,8 @@ async function fetchFromGitHub(
   service: GitHubService,
   username: string,
   fromDate: string,
-  toDate: string
+  toDate: string,
+  token?: string
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "github",
@@ -217,7 +260,7 @@ async function fetchFromGitHub(
     toDate,
   };
 
-  return service.fetchContributionData(query);
+  return service.fetchContributionData(query, token);
 }
 
 /**
@@ -230,7 +273,9 @@ async function fetchFromGitLab(
   service: GitLabService,
   username: string,
   fromDate: string,
-  toDate: string
+  toDate: string,
+  token?: string,
+  baseUrl?: string
 ): Promise<ContributionData> {
   const query: ContributionQuery = {
     provider: "gitlab",
@@ -239,7 +284,7 @@ async function fetchFromGitLab(
     toDate,
   };
 
-  return service.fetchContributionData(query);
+  return service.fetchContributionData(query, token, baseUrl);
 }
 
 /**

@@ -13,8 +13,9 @@ export type HistoryControllerDependencies = {
 };
 
 type HistoryQueryParams = {
-  githubUsername?: string;
-  gitlabUsername?: string;
+  githubToken?: string;
+  gitlabToken?: string;
+  gitlabBaseUrl?: string;
   fromDate: string; // YYYY-MM-DD
   toDate: string;   // YYYY-MM-DD
 };
@@ -51,16 +52,34 @@ function getDateRange(year?: number): { fromDate: string; toDate: string } {
   };
 }
 
+/** Read optional string query param (all query params are lowercase). */
+function q(req: Request, key: string): string | undefined {
+  const raw = req.query[key] as string | undefined;
+  return typeof raw === "string" ? raw.trim() || undefined : undefined;
+}
+
 /**
  * Parses query parameters for history request.
+ * All query parameter names are lowercase.
  */
 function parseQueryParams(req: Request): HistoryQueryParams {
-  const { githubUsername, gitlabUsername, year } = req.query;
+  const parsedGithubToken = q(req, "githubtoken");
+  const parsedGitlabToken = q(req, "gitlabtoken");
+  const gitlabBaseUrl = q(req, "gitlabbaseurl");
+  const year = q(req, "year");
+
+  // Validate token format (if provided, must be non-empty)
+  if (parsedGithubToken !== undefined && parsedGithubToken === "") {
+    throw badRequest("Invalid GitHub token format");
+  }
+  if (parsedGitlabToken !== undefined && parsedGitlabToken === "") {
+    throw badRequest("Invalid GitLab token format");
+  }
 
   // Parse and validate year parameter (optional - if not provided, uses rolling year)
   let parsedYear: number | undefined;
-  if (typeof year === "string" && year.trim()) {
-    const yearNum = parseInt(year.trim(), 10);
+  if (year) {
+    const yearNum = parseInt(year, 10);
     if (isNaN(yearNum) || yearNum < 2000 || yearNum > new Date().getFullYear()) {
       throw badRequest(
         `Invalid year "${year}". Must be a valid year between 2000 and ${new Date().getFullYear()}.`
@@ -72,8 +91,9 @@ function parseQueryParams(req: Request): HistoryQueryParams {
   const { fromDate, toDate } = getDateRange(parsedYear);
 
   return {
-    githubUsername: typeof githubUsername === "string" ? githubUsername.trim() : undefined,
-    gitlabUsername: typeof gitlabUsername === "string" ? gitlabUsername.trim() : undefined,
+    githubToken: parsedGithubToken,
+    gitlabToken: parsedGitlabToken,
+    gitlabBaseUrl: gitlabBaseUrl || undefined,
     fromDate,
     toDate,
   };
@@ -103,9 +123,17 @@ export function createHistoryController(
   return async (req: Request, res: Response): Promise<void> => {
     const params = parseQueryParams(req);
 
+    // Require at least one token
+    if (!params.githubToken && !params.gitlabToken) {
+      throw badRequest(
+        "At least one token is required. Provide githubtoken and/or gitlabtoken."
+      );
+    }
+
     const result = await contributionService.fetchAggregatedContributions({
-      githubUsername: params.githubUsername,
-      gitlabUsername: params.gitlabUsername,
+      githubToken: params.githubToken,
+      gitlabToken: params.gitlabToken,
+      gitlabBaseUrl: params.gitlabBaseUrl,
       fromDate: params.fromDate,
       toDate: params.toDate,
     });
@@ -122,6 +150,7 @@ export function createHistoryController(
     const svg = renderLineChartSvg({ points });
 
     res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.send(svg);
   };
 }

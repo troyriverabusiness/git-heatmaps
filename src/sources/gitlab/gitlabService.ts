@@ -31,8 +31,9 @@ export type GitLabServiceConfig = {
 };
 
 export type GitLabService = {
-  fetchContributionData(query: ContributionQuery): Promise<ContributionData>;
-  fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory>;
+  fetchContributionData(query: ContributionQuery, token?: string, baseUrl?: string): Promise<ContributionData>;
+  fetchContributionHistory(query: ContributionQuery, token?: string, baseUrl?: string): Promise<ContributionHistory>;
+  fetchAuthenticatedUsername(token: string, baseUrl?: string): Promise<string>;
 };
 
 /**
@@ -59,15 +60,22 @@ type GitLabApiEvent = {
  * Creates a GitLab service for fetching contribution data.
  */
 export function createGitLabService(config: GitLabServiceConfig = {}): GitLabService {
-  const client = createGitLabClient({
+  // Create default client if config has token or baseUrl
+  const defaultClient = createGitLabClient({
     token: config.token,
     baseUrl: config.baseUrl,
   });
 
   return {
-    async fetchContributionData(query: ContributionQuery): Promise<ContributionData> {
+    async fetchContributionData(query: ContributionQuery, token?: string, baseUrl?: string): Promise<ContributionData> {
       const { fromDate, toDate } = query;
-      
+      const resolvedBaseUrl = baseUrl ?? config.baseUrl;
+
+      // Use per-request token/baseUrl if provided, otherwise use default client
+      const client = token !== undefined || baseUrl !== undefined
+        ? createGitLabClient({ token: token ?? config.token, baseUrl: resolvedBaseUrl })
+        : defaultClient;
+
       const events = await fetchUserEvents(client, query.user, fromDate, toDate);
       console.log(`[gitlab-service] Total events fetched: ${events.length}`);
 
@@ -84,9 +92,14 @@ export function createGitLabService(config: GitLabServiceConfig = {}): GitLabSer
       };
     },
 
-    async fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory> {
+    async fetchContributionHistory(query: ContributionQuery, token?: string, baseUrl?: string): Promise<ContributionHistory> {
       const { fromDate, toDate } = query;
-      
+      const resolvedBaseUrl = baseUrl ?? config.baseUrl;
+
+      const client = token !== undefined || baseUrl !== undefined
+        ? createGitLabClient({ token: token ?? config.token, baseUrl: resolvedBaseUrl })
+        : defaultClient;
+
       const events = await fetchUserEvents(client, query.user, fromDate, toDate);
       const aggregated = aggregateEventsByDay(events);
       const filtered = filterByDateRange(aggregated, fromDate, toDate);
@@ -96,6 +109,12 @@ export function createGitLabService(config: GitLabServiceConfig = {}): GitLabSer
         user: query.user,
         points: mapToHistoryPoints(filtered),
       };
+    },
+
+    async fetchAuthenticatedUsername(token: string, baseUrl?: string): Promise<string> {
+      const resolvedBaseUrl = baseUrl ?? config.baseUrl;
+      const client = createGitLabClient({ token, baseUrl: resolvedBaseUrl });
+      return client.getAuthenticatedUser();
     },
   };
 }

@@ -23,6 +23,7 @@ export type GitLabResponse<T> = {
 
 export type GitLabClient = {
   get<T>(path: string, params?: Record<string, string | number>): Promise<GitLabResponse<T>>;
+  getAuthenticatedUser(): Promise<string>;
 };
 
 /**
@@ -41,7 +42,7 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
   return {
     async get<T>(path: string, params?: Record<string, string | number>): Promise<GitLabResponse<T>> {
       const url = new URL(`/api/v4${path}`, baseUrl);
-      
+
       if (params) {
         for (const [key, value] of Object.entries(params)) {
           url.searchParams.set(key, String(value));
@@ -58,7 +59,7 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
       }
 
       console.log(`[gitlab-client] GET ${url.pathname}${url.search}`);
-      
+
       const response = await fetch(url.toString(), {
         method: "GET",
         headers,
@@ -78,8 +79,8 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
       const pagination: GitLabPaginationInfo = {
         page: parseInt(response.headers.get("X-Page") || "1", 10),
         perPage: parseInt(response.headers.get("X-Per-Page") || "20", 10),
-        totalPages: response.headers.get("X-Total-Pages") 
-          ? parseInt(response.headers.get("X-Total-Pages")!, 10) 
+        totalPages: response.headers.get("X-Total-Pages")
+          ? parseInt(response.headers.get("X-Total-Pages")!, 10)
           : undefined,
         total: response.headers.get("X-Total")
           ? parseInt(response.headers.get("X-Total")!, 10)
@@ -90,6 +91,42 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
       };
 
       return { data, pagination };
+    },
+
+    async getAuthenticatedUser(): Promise<string> {
+      console.log(`[gitlab-client] Fetching authenticated user`);
+
+      const url = new URL(`/api/v4/user`, baseUrl);
+
+      const headers: Record<string, string> = {
+        "Accept": "application/json",
+        "User-Agent": "git-heatmaps",
+      };
+
+      if (token) {
+        headers["PRIVATE-TOKEN"] = token;
+      }
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers,
+      });
+
+      console.log(`[gitlab-client] Response: ${response.status} ${response.statusText}`);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[gitlab-client] Error response body: ${errorBody}`);
+        throw new Error(`GitLab authentication failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json() as { username?: string };
+
+      if (!data.username) {
+        throw new Error("GitLab API returned no username");
+      }
+
+      return data.username;
     },
   };
 }

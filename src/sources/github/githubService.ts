@@ -7,12 +7,13 @@ import { contributionCalendarQuery } from "./githubQueries";
 import { mapContributionData, mapContributionHistory, type GitHubContributionCalendarResponse } from "./githubMapper";
 
 export type GitHubServiceConfig = {
-  token: string;
+  token?: string;
 };
 
 export type GitHubService = {
-  fetchContributionData(query: ContributionQuery): Promise<ContributionData>;
-  fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory>;
+  fetchContributionData(query: ContributionQuery, token?: string): Promise<ContributionData>;
+  fetchContributionHistory(query: ContributionQuery, token?: string): Promise<ContributionHistory>;
+  fetchAuthenticatedUsername(token: string): Promise<string>;
 };
 
 /**
@@ -23,21 +24,31 @@ export type GitHubService = {
  * TODO: Add support for fetching contributions across multiple years
  */
 export function createGitHubService(config: GitHubServiceConfig): GitHubService {
-  const clientConfig: GitHubClientConfig = {
-    token: config.token,
-  };
-  
-  const client: GitHubClient = createGitHubClient(clientConfig);
+  // Create default client if token provided
+  const defaultClient = config.token ? createGitHubClient({ token: config.token }) : undefined;
 
   return {
-    async fetchContributionData(query: ContributionQuery): Promise<ContributionData> {
+    async fetchContributionData(query: ContributionQuery, token?: string): Promise<ContributionData> {
+      const client = token ? createGitHubClient({ token }) : defaultClient;
+      if (!client) {
+        throw new Error("GitHub token is required");
+      }
       const response = await fetchContributionCalendar(client, query);
       return mapContributionData(response, query.user);
     },
 
-    async fetchContributionHistory(query: ContributionQuery): Promise<ContributionHistory> {
+    async fetchContributionHistory(query: ContributionQuery, token?: string): Promise<ContributionHistory> {
+      const client = token ? createGitHubClient({ token }) : defaultClient;
+      if (!client) {
+        throw new Error("GitHub token is required");
+      }
       const response = await fetchContributionCalendar(client, query);
       return mapContributionHistory(response, query.user);
+    },
+
+    async fetchAuthenticatedUsername(token: string): Promise<string> {
+      const client = createGitHubClient({ token });
+      return client.getAuthenticatedUser();
     },
   };
 }

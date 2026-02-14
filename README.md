@@ -92,22 +92,23 @@ Returns the health status of the service.
 
 ### Heatmap
 
-Generate a contribution heatmap as an SVG image for a specific year.
+Generate a contribution heatmap as an SVG image. Usernames are resolved from the provided tokens; no username parameters are required.
 
 ```http
-GET /heatmap?githubUsername={username}&gitlabUsername={username}&year={year}&theme={theme}
+GET /heatmap?githubtoken={token}&gitlabtoken={token}&year={year}&theme={theme}
 ```
 
-**Query Parameters:**
+**Query Parameters (all lowercase):**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `githubUsername` | string | Yes* | GitHub username |
-| `gitlabUsername` | string | Yes* | GitLab username |
-| `year` | number | No | Year to display (e.g., `2024`). Defaults to current year if not provided. Must be between 2000 and current year. |
+| `githubtoken` | string | Yes* | GitHub personal access token (username is resolved from the token) |
+| `gitlabtoken` | string | Yes* | GitLab personal access token (username is resolved from the token) |
+| `gitlabbaseurl` | string | No | GitLab instance base URL for self-hosted (e.g. `https://gitlab.company.com`) |
+| `year` | number | No | Year to display (e.g., `2024`). Defaults to rolling year if not provided. Must be between 2000 and current year. |
 | `theme` | string | No | Color theme: `default`, `github`, `gitlab`, `ice`, `fire`, `candy`, `rainbow`, `neon` (default: `default`) |
 
-\* At least one of `githubUsername` or `gitlabUsername` is required.
+\* At least one of `githubtoken` or `gitlabtoken` is required.
 
 **Response:** SVG image (`image/svg+xml`)
 
@@ -115,21 +116,22 @@ GET /heatmap?githubUsername={username}&gitlabUsername={username}&year={year}&the
 
 ### History
 
-Generate a contribution history line chart as an SVG image for a specific year.
+Generate a contribution history line chart as an SVG image. Usernames are resolved from the provided tokens.
 
 ```http
-GET /history?githubUsername={username}&gitlabUsername={username}&year={year}
+GET /history?githubtoken={token}&gitlabtoken={token}&year={year}
 ```
 
-**Query Parameters:**
+**Query Parameters (all lowercase):**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `githubUsername` | string | Yes* | GitHub username |
-| `gitlabUsername` | string | Yes* | GitLab username |
-| `year` | number | No | Year to display (e.g., `2024`). Defaults to current year if not provided. Must be between 2000 and current year. |
+| `githubtoken` | string | Yes* | GitHub personal access token (username is resolved from the token) |
+| `gitlabtoken` | string | Yes* | GitLab personal access token (username is resolved from the token) |
+| `gitlabbaseurl` | string | No | GitLab instance base URL for self-hosted |
+| `year` | number | No | Year to display (e.g., `2024`). Defaults to rolling year if not provided. Must be between 2000 and current year. |
 
-\* At least one of `githubUsername` or `gitlabUsername` is required.
+\* At least one of `githubtoken` or `gitlabtoken` is required.
 
 **Response:** SVG image (`image/svg+xml`)
 
@@ -137,34 +139,30 @@ GET /history?githubUsername={username}&gitlabUsername={username}&year={year}
 
 ## Examples
 
-### GitHub Heatmap
+Use tokens in the query; the service resolves usernames from the tokens. In production, avoid putting tokens in URLs (e.g. use server-side proxy or env vars).
+
+### GitHub-only heatmap
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&year=2024&theme=github" > heatmap.svg
+curl "http://localhost:3000/heatmap?githubtoken=YOUR_GITHUB_TOKEN&year=2024&theme=github" > heatmap.svg
 ```
 
-### GitLab Heatmap (Self-Hosted Instance)
+### GitLab-only heatmap (self-hosted)
 
 ```bash
-curl "http://localhost:3000/heatmap?gitlabUsername=someUser&year=2024&theme=gitlab" > heatmap.svg
+curl "http://localhost:3000/heatmap?gitlabtoken=YOUR_GITLAB_TOKEN&gitlabbaseurl=https://gitlab.example.com&year=2024&theme=gitlab" > heatmap.svg
 ```
 
-### Combined GitHub and GitLab Heatmap
+### Combined GitHub and GitLab heatmap
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&gitlabUsername=someUser&year=2024&theme=fire" > heatmap.svg
+curl "http://localhost:3000/heatmap?githubtoken=YOUR_GITHUB_TOKEN&gitlabtoken=YOUR_GITLAB_TOKEN&year=2024&theme=fire" > heatmap.svg
 ```
 
-### Year-Specific Heatmap
+### History chart
 
 ```bash
-curl "http://localhost:3000/heatmap?githubUsername=octocat&year=2024&theme=ice" > heatmap.svg
-```
-
-### History Chart
-
-```bash
-curl "http://localhost:3000/history?githubUsername=octocat&gitlabUsername=someUser&year=2024" > history.svg
+curl "http://localhost:3000/history?githubtoken=YOUR_GITHUB_TOKEN&gitlabtoken=YOUR_GITLAB_TOKEN&year=2024" > history.svg
 ```
 
 ### Available Themes
@@ -196,7 +194,10 @@ GITLAB_TOKEN=glpat_your_corporate_token
 GITLAB_BASE_URL=https://gitlab.company.com
 ```
 
+**Per-request self-hosted (token mode):** When calling the API with `githubtoken` / `gitlabtoken`, you can pass an optional `gitlabbaseurl` query parameter to target a specific GitLab instance for that request (e.g. `gitlabbaseurl=https://gitlab.your-company.com`). This overrides the server’s `GITLAB_BASE_URL` for that call, so one server can serve both GitLab.com and self-hosted instances.
+
 **Important Notes:**
+- All query parameter names are lowercase (e.g. `githubtoken`, `gitlabusername`, `gitlabbaseurl`)
 - Ensure your GitLab instance is accessible from the Docker container
 - Use the full base URL (including protocol: `https://` or `http://`)
 - The token must have `read_api` or `api` scope
