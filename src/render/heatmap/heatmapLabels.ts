@@ -24,22 +24,24 @@ export function renderMonthLabels(
   weeks.forEach((week, weekIndex) => {
     if (week.length === 0) return;
 
-    // Check the first day of the week
-    const firstDay = week[0];
-    const date = new Date(firstDay.dateIso);
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const yearMonth = `${year}-${month}`;
+    // Check all days in the week for a new month
+    for (const day of week) {
+      const date = new Date(day.dateIso);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const yearMonth = `${year}-${month}`;
 
-    // Render label when we encounter a new year-month combination
-    if (yearMonth !== lastYearMonth) {
-      const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
-      const y = config.margin.top - 6;
+      // Render label when we encounter a new year-month combination
+      if (yearMonth !== lastYearMonth) {
+        const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
+        const y = config.margin.top - 6;
 
-      labels.push(
-        `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
-      );
-      lastYearMonth = yearMonth;
+        labels.push(
+          `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
+        );
+        lastYearMonth = yearMonth;
+        break; // Only render one label per week
+      }
     }
   });
 

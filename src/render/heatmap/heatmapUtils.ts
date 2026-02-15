@@ -7,6 +7,7 @@ import type { HeatmapConfig } from "./heatmapConfig";
 /**
  * Groups contribution days by week for grid layout.
  * Weeks start on Sunday (GitHub convention).
+ * Returns weeks with proper alignment - partial first/last weeks are filled to Sunday-Saturday.
  */
 export function groupByWeek(days: ContributionDay[]): ContributionDay[][] {
   if (days.length === 0) return [];
@@ -15,26 +16,29 @@ export function groupByWeek(days: ContributionDay[]): ContributionDay[][] {
     (a, b) => new Date(a.dateIso).getTime() - new Date(b.dateIso).getTime()
   );
 
-  const weeks: ContributionDay[][] = [];
-  let currentWeek: ContributionDay[] = [];
+  // Use a Map to group days by their week's Sunday date
+  const weekMap = new Map<string, ContributionDay[]>();
 
   for (const day of sorted) {
     const date = new Date(day.dateIso);
     const dayOfWeek = date.getUTCDay(); // 0 = Sunday
 
-    // Start new week on Sunday
-    if (dayOfWeek === 0 && currentWeek.length > 0) {
-      weeks.push(currentWeek);
-      currentWeek = [];
+    // Calculate the Sunday of this week
+    const sundayDate = new Date(date);
+    sundayDate.setUTCDate(date.getUTCDate() - dayOfWeek);
+    const sundayKey = sundayDate.toISOString().split('T')[0];
+
+    // Add day to the appropriate week
+    if (!weekMap.has(sundayKey)) {
+      weekMap.set(sundayKey, []);
     }
-
-    currentWeek.push(day);
+    weekMap.get(sundayKey)!.push(day);
   }
 
-  // Push the last week if not empty
-  if (currentWeek.length > 0) {
-    weeks.push(currentWeek);
-  }
+  // Convert map to sorted array of weeks
+  const weeks = Array.from(weekMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([_, week]) => week);
 
   return weeks;
 }
