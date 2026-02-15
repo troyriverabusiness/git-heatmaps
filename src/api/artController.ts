@@ -8,6 +8,7 @@ import { badRequest } from "../utils/appError";
 import { isValidTheme, VALID_THEMES, type HeatmapTheme } from "../render/shared/colorScale";
 import { getArtPatternById, getArtPatternCount } from "../render/art";
 import { patternToContributionDaysGrid } from "../render/art/artRenderer";
+import { sendSVGResponse } from "../utils/network";
 
 type ArtQueryParams = {
   pattern: number;
@@ -93,10 +94,7 @@ export function createArtController(): (req: Request, res: Response) => Promise<
       options: { theme: params.theme },
     });
 
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Vary", "Accept-Encoding");
-    res.send(svg);
+    sendSVGResponse(res, svg);
   };
 }
 
