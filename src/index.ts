@@ -21,13 +21,15 @@ const gitlabService = createGitLabService({
   baseUrl: process.env.GITLAB_BASE_URL,
 });
 
-// Create cache with 5 minute default TTL
-const cache = createMemoryCache({ defaultTtlMs: 5 * 60 * 1000 });
+// Create cache with configurable TTL and max size
+const defaultTtlMs = Number(process.env.CACHE_TTL_MS ?? '86400000'); // 24 hours default
+const maxSize = Number(process.env.CACHE_MAX_SIZE ?? '10000'); // 10k entries default
+const cache = createMemoryCache({ defaultTtlMs, maxSize });
 
 // Log available services at startup
 console.log(`[config] GitHub service: enabled (token-per-request mode)`);
 console.log(`[config] GitLab service: enabled (token-per-request mode)`);
-console.log(`[config] Memory cache: enabled`);
+console.log(`[config] Memory cache: enabled (TTL: ${defaultTtlMs}ms, max size: ${maxSize})`);
 if (process.env.GITLAB_BASE_URL) {
   console.log(`[config] GitLab base URL: ${process.env.GITLAB_BASE_URL}`);
 }

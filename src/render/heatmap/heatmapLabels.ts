@@ -18,26 +18,29 @@ export function renderMonthLabels(
   if (!config.showMonthLabels || weeks.length === 0) return "";
 
   const labels: string[] = [];
-  let lastMonth = -1;
+  const monthPositions = new Map<number, number>(); // month -> weekIndex
 
+  // Find the first occurrence of each month across all weeks
   weeks.forEach((week, weekIndex) => {
-    if (week.length === 0) return;
+    week.forEach((day) => {
+      const date = new Date(day.dateIso);
+      const month = date.getUTCMonth();
 
-    // Use the first day of the week to determine month
-    const firstDay = week[0];
-    const date = new Date(firstDay.dateIso);
-    const month = date.getUTCMonth();
+      // Record the first week where each month appears
+      if (!monthPositions.has(month)) {
+        monthPositions.set(month, weekIndex);
+      }
+    });
+  });
 
-    // Only render label when month changes
-    if (month !== lastMonth) {
-      const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
-      const y = config.margin.top - 6;
+  // Render labels at the first week of each month
+  monthPositions.forEach((weekIndex, month) => {
+    const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
+    const y = config.margin.top - 6;
 
-      labels.push(
-        `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
-      );
-      lastMonth = month;
-    }
+    labels.push(
+      `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
+    );
   });
 
   return `  <g class="month-labels">\n${labels.join("\n")}\n  </g>`;
