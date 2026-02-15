@@ -18,29 +18,29 @@ export function renderMonthLabels(
   if (!config.showMonthLabels || weeks.length === 0) return "";
 
   const labels: string[] = [];
-  const monthPositions = new Map<number, number>(); // month -> weekIndex
+  let lastYearMonth = "";
 
-  // Find the first occurrence of each month across all weeks
+  // Iterate through weeks and detect month transitions
   weeks.forEach((week, weekIndex) => {
-    week.forEach((day) => {
-      const date = new Date(day.dateIso);
-      const month = date.getUTCMonth();
+    if (week.length === 0) return;
 
-      // Record the first week where each month appears
-      if (!monthPositions.has(month)) {
-        monthPositions.set(month, weekIndex);
-      }
-    });
-  });
+    // Check the first day of the week
+    const firstDay = week[0];
+    const date = new Date(firstDay.dateIso);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const yearMonth = `${year}-${month}`;
 
-  // Render labels at the first week of each month
-  monthPositions.forEach((weekIndex, month) => {
-    const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
-    const y = config.margin.top - 6;
+    // Render label when we encounter a new year-month combination
+    if (yearMonth !== lastYearMonth) {
+      const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
+      const y = config.margin.top - 6;
 
-    labels.push(
-      `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
-    );
+      labels.push(
+        `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
+      );
+      lastYearMonth = yearMonth;
+    }
   });
 
   return `  <g class="month-labels">\n${labels.join("\n")}\n  </g>`;
