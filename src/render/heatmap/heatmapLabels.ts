@@ -10,6 +10,7 @@ const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 /**
  * Renders month labels at the top of the heatmap.
+ * For rolling years, each month name appears only once (prefers later occurrence).
  */
 export function renderMonthLabels(
   weeks: ContributionDay[][],
@@ -17,26 +18,56 @@ export function renderMonthLabels(
 ): string {
   if (!config.showMonthLabels || weeks.length === 0) return "";
 
-  const labels: string[] = [];
-  let lastMonth = -1;
+  // First pass: find all year-month transitions and their week indices
+  const yearMonthTransitions = new Map<string, number>(); // "year-month" -> weekIndex
+  let lastYearMonth = "";
 
   weeks.forEach((week, weekIndex) => {
     if (week.length === 0) return;
 
-    // Use the first day of the week to determine month
-    const firstDay = week[0];
-    const date = new Date(firstDay.dateIso);
-    const month = date.getUTCMonth();
+    for (const day of week) {
+      const date = new Date(day.dateIso);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const yearMonth = `${year}-${month}`;
 
-    // Only render label when month changes
-    if (month !== lastMonth) {
+      if (yearMonth !== lastYearMonth) {
+        yearMonthTransitions.set(yearMonth, weekIndex);
+        lastYearMonth = yearMonth;
+        break;
+      }
+    }
+  });
+
+  // Second pass: for each month name (0-11), keep only the later year's occurrence
+  const monthToRender = new Map<number, string>(); // month -> "year-month" to actually render
+
+  yearMonthTransitions.forEach((weekIndex, yearMonth) => {
+    const [year, monthStr] = yearMonth.split('-');
+    const month = parseInt(monthStr, 10);
+
+    // Keep this occurrence if we haven't seen this month, or if this is a later year
+    const existing = monthToRender.get(month);
+    if (!existing || yearMonth > existing) {
+      monthToRender.set(month, yearMonth);
+    }
+  });
+
+  // Third pass: render labels for the selected month occurrences
+  const labels: string[] = [];
+
+  yearMonthTransitions.forEach((weekIndex, yearMonth) => {
+    const [year, monthStr] = yearMonth.split('-');
+    const month = parseInt(monthStr, 10);
+
+    // Only render if this is the selected occurrence for this month name
+    if (monthToRender.get(month) === yearMonth) {
       const x = config.margin.left + weekIndex * (config.cellSize + config.cellGap);
       const y = config.margin.top - 6;
 
       labels.push(
         `    <text x="${x}" y="${y}" font-size="${config.fontSize}" font-family="${config.fontFamily}" fill="${config.labelColor}">${MONTH_LABELS[month]}</text>`
       );
-      lastMonth = month;
     }
   });
 

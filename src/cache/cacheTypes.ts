@@ -7,6 +7,20 @@ export interface CacheEntry<T> {
 }
 
 /**
+ * Cache statistics for monitoring and observability.
+ */
+export interface CacheStats {
+  /** Current number of entries in cache */
+  size: number;
+  /** Maximum allowed entries (undefined if unbounded) */
+  maxSize: number | undefined;
+  /** All cache keys currently stored */
+  keys: string[];
+  /** Cache hit rate (hits / total requests), 0-1 range */
+  hitRate: number;
+}
+
+/**
  * Minimal cache interface with TTL support.
  */
 export interface Cache {
@@ -14,6 +28,8 @@ export interface Cache {
   set<T>(key: string, value: T, ttlMs: number): void;
   delete(key: string): void;
   clear(): void;
+  /** Get cache statistics for monitoring */
+  getStats(): CacheStats;
 }
 
 /**
@@ -25,5 +41,11 @@ export interface MemoryCacheOptions {
    * If not provided, ttlMs is required in every set() call.
    */
   defaultTtlMs?: number;
+  /**
+   * Maximum number of cache entries allowed.
+   * When limit is reached, least recently used entries are evicted.
+   * If not provided, cache can grow unbounded (not recommended for production).
+   */
+  maxSize?: number;
 }
 

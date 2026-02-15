@@ -8,6 +8,7 @@ import type { ContributionDay } from "../domain/contributions";
 import { renderHeatmapSvg } from "../render";
 import { badRequest, upstreamError } from "../utils/appError";
 import { isValidTheme, VALID_THEMES, type HeatmapTheme } from "../render/shared/colorScale";
+import { sendSVGResponse } from "../utils/network";
 
 export type HeatmapControllerDependencies = {
   contributionService: ContributionService;
@@ -179,10 +180,6 @@ export function createHeatmapController(
       options: params.theme ? { theme: params.theme } : undefined,
     });
 
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Vary", "Accept-Encoding");
-    res.setHeader("Referrer-Policy", "no-referrer");
-    res.send(svg);
+    sendSVGResponse(res, svg);
   };
 }

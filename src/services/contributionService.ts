@@ -5,9 +5,10 @@ import type { GitHubService } from "../sources/github/githubService";
 import type { GitLabService } from "../sources/gitlab/gitlabService";
 import type { ContributionQuery, ContributionData } from "../domain/contributions";
 import type { Cache } from "../cache";
+import { buildSourceCacheKey } from "../cache/cacheKeys";
 
-// Cache TTL: 5 minutes (contributions don't change frequently)
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// Cache TTL: 24 hours (contributions only update once per day)
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Unified contribution entry combining all sources.
@@ -67,16 +68,28 @@ type ContributionServiceDependencies = {
 };
 
 /**
- * Builds a cache key from the query parameters.
+ * Looks up cached contribution data for a specific source.
+ * Returns null if cache is not available or if there's a cache miss.
  */
-function buildCacheKey(query: AggregatedContributionQuery): string {
-  const parts = [
-    'contributions',
-    query.githubUsername ? `gh:${query.githubUsername}` : '',
-    query.gitlabUsername ? `gl:${query.gitlabUsername}` : '',
-    `${query.fromDate}_${query.toDate}`,
-  ].filter(Boolean);
-  return parts.join(':');
+function lookupSourceCache(
+  cache: Cache | undefined,
+  provider: 'github' | 'gitlab',
+  token: string,
+  fromDate: string,
+  toDate: string
+): ContributionData | null {
+  if (!cache) return null;
+
+  const cacheKey = buildSourceCacheKey({ provider, token, fromDate, toDate });
+  const cached = cache.get<ContributionData>(cacheKey);
+
+  if (cached) {
+    console.log(`[service] Cache HIT for ${provider} (key="${cacheKey}")`);
+    return cached;
+  }
+
+  console.log(`[service] Cache MISS for ${provider} (key="${cacheKey}")`);
+  return null;
 }
 
 /**
@@ -129,27 +142,34 @@ export function createContributionService(
         }
       }
 
-      // Build cache key with resolved usernames
-      const cacheQuery = { ...query, githubUsername, gitlabUsername };
-      const cacheKey = buildCacheKey(cacheQuery);
+      // Check cache for each source independently (token-based caching)
+      const cachedGitHub = query.githubToken && githubUsername
+        ? lookupSourceCache(cache, 'github', query.githubToken, fromDate, toDate)
+        : null;
 
-      // Check cache
-      if (cache) {
-        const cached = cache.get<AggregatedContributionResult>(cacheKey);
-        if (cached) {
-          console.log(`[service] Returning cached result for key="${cacheKey}"`);
-          return cached;
-        }
-      }
+      const cachedGitLab = query.gitlabToken && gitlabUsername
+        ? lookupSourceCache(cache, 'gitlab', query.gitlabToken, fromDate, toDate)
+        : null;
 
       const errors: SourceError[] = [];
       const sourceResults: ContributionData[] = [];
       let sourcesRequested = 0;
 
-      // Fetch from available sources in parallel
+      // Add cached results to sourceResults
+      if (cachedGitHub) {
+        sourceResults.push(cachedGitHub);
+        console.log(`[service] Using cached GitHub data for user "${githubUsername}"`);
+      }
+
+      if (cachedGitLab) {
+        sourceResults.push(cachedGitLab);
+        console.log(`[service] Using cached GitLab data for user "${gitlabUsername}"`);
+      }
+
+      // Fetch from available sources in parallel (only if not cached)
       const fetchPromises: Promise<void>[] = [];
 
-      if (githubService && githubUsername) {
+      if (githubService && githubUsername && !cachedGitHub) {
         sourcesRequested++;
         console.log(`[source] GitHub: fetching contributions for user "${githubUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
@@ -178,7 +198,7 @@ export function createContributionService(
         );
       }
 
-      if (gitlabService && gitlabUsername) {
+      if (gitlabService && gitlabUsername && !cachedGitLab) {
         sourcesRequested++;
         console.log(`[source] GitLab: fetching contributions for user "${gitlabUsername}" (${fromDate} to ${toDate})`);
         const startTime = Date.now();
@@ -224,9 +244,37 @@ export function createContributionService(
         sourcesSucceeded: sourceResults.length,
       };
 
-      // Cache the result
+      // Cache each source separately (only newly fetched data)
       if (cache) {
-        cache.set(cacheKey, result, CACHE_TTL_MS);
+        for (const source of sourceResults) {
+          const wasCached =
+            (source.provider === 'github' && cachedGitHub) ||
+            (source.provider === 'gitlab' && cachedGitLab);
+
+          if (!wasCached) {
+            if (source.provider === 'github' && query.githubToken) {
+              const key = buildSourceCacheKey({
+                provider: 'github',
+                token: query.githubToken,
+                fromDate,
+                toDate
+              });
+              cache.set(key, source, CACHE_TTL_MS);
+              console.log(`[service] Cached GitHub data (key="${key}", ttl=${CACHE_TTL_MS}ms)`);
+            }
+
+            if (source.provider === 'gitlab' && query.gitlabToken) {
+              const key = buildSourceCacheKey({
+                provider: 'gitlab',
+                token: query.gitlabToken,
+                fromDate,
+                toDate
+              });
+              cache.set(key, source, CACHE_TTL_MS);
+              console.log(`[service] Cached GitLab data (key="${key}", ttl=${CACHE_TTL_MS}ms)`);
+            }
+          }
+        }
       }
 
       return result;

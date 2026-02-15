@@ -7,6 +7,7 @@ import type { ContributionService } from "../services/contributionService";
 import type { ContributionHistoryPoint } from "../domain/contributions";
 import { renderLineChartSvg } from "../render";
 import { badRequest, upstreamError } from "../utils/appError";
+import { sendSVGResponse } from "../utils/network";
 
 export type HistoryControllerDependencies = {
   contributionService: ContributionService;
@@ -149,8 +150,6 @@ export function createHistoryController(
     const points = toHistoryPoints(result.contributions);
     const svg = renderLineChartSvg({ points });
 
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Referrer-Policy", "no-referrer");
-    res.send(svg);
+    sendSVGResponse(res, svg);
   };
 }
