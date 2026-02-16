@@ -1,5 +1,7 @@
 // Low-level REST client for GitLab API.
 
+import { fetchWithTimeout } from "../../utils/network";
+
 // LRZ GitLab instance base URL
 const DEFAULT_GITLAB_BASE_URL = "https://gitlab.lrz.de";
 
@@ -60,7 +62,7 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
 
       console.log(`[gitlab-client] GET ${url.pathname}${url.search}`);
 
-      const response = await fetch(url.toString(), {
+      const response = await fetchWithTimeout(url.toString(), {
         method: "GET",
         headers,
       });
@@ -107,7 +109,7 @@ export function createGitLabClient(config: GitLabClientConfig = {}): GitLabClien
         headers["PRIVATE-TOKEN"] = token;
       }
 
-      const response = await fetch(url.toString(), {
+      const response = await fetchWithTimeout(url.toString(), {
         method: "GET",
         headers,
       });

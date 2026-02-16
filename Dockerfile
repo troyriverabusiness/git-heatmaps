@@ -1,5 +1,7 @@
 FROM node:20-alpine AS build
 
+USER node
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./

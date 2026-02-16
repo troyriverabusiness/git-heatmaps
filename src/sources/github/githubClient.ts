@@ -1,5 +1,7 @@
 // Low-level GraphQL HTTP client for GitHub API.
 
+import { fetchWithTimeout } from "../../utils/network";
+
 const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
 
 export type GitHubClientConfig = {
@@ -35,7 +37,7 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
     async query<T>(graphql: string, variables?: Record<string, unknown>): Promise<GraphQlResponse<T>> {
       console.log(`[github-client] POST /graphql (user: ${variables?.username ?? "unknown"})`);
 
-      const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {
+      const response = await fetchWithTimeout(GITHUB_GRAPHQL_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -68,7 +70,7 @@ export function createGitHubClient(config: GitHubClientConfig): GitHubClient {
     async getAuthenticatedUser(): Promise<string> {
       console.log(`[github-client] Fetching authenticated user`);
 
-      const response = await fetch(GITHUB_GRAPHQL_ENDPOINT, {
+      const response = await fetchWithTimeout(GITHUB_GRAPHQL_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
